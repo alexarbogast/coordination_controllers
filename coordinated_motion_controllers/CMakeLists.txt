@@ -30,3 +30,6 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
 )
+
+add_executable(coordinated_motion_test src/test.cpp)
+target_link_libraries(coordinated_motion_test ${catkin_LIBRARIES})
