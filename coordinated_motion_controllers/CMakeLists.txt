@@ -31,5 +31,8 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
 )
 
+add_library(${PROJECT_NAME} src/coordinated_robot_controller.cpp)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+
 add_executable(coordinated_motion_test src/test.cpp)
-target_link_libraries(coordinated_motion_test ${catkin_LIBRARIES})
+target_link_libraries(coordinated_motion_test ${PROJECT_NAME} ${catkin_LIBRARIES})
