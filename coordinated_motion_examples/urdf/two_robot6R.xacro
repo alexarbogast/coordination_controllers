@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<robot name="two_robot6R" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:property name="radius" value="0.5"/>
+  <xacro:property name="spacing" value="0.52"/>
+
+  <xacro:include filename="$(find coordinated_motion_examples)/urdf/robot6R_macro.xacro"/>
+  <xacro:robot6R_macro prefix="rob1_"/>
+  <xacro:robot6R_macro prefix="rob2_"/>
+
+  <xacro:include filename="$(find coordinated_motion_examples)/urdf/positioner1R_macro.xacro"/>
+  <xacro:positioner1R_macro/>
+
+  <!-- colors -->
+  <material name="grey">
+    <color rgba="0.7 0.7 0.7 1.0"/>
+  </material>
+
+  <!-- Connect to world -->
+  <link name="world"/>
+  <joint name="world_rob1_base" type="fixed">
+    <parent link="world"/>
+    <child link = "rob1_base_link"/>
+    <origin xyz="-${radius} -${spacing/2} 0.0" rpy="0.0 0.0 0.0"/>
+  </joint>
+  <joint name="world_rob2_base" type="fixed">
+    <parent link="world"/>
+    <child link = "rob2_base_link"/>
+    <origin xyz="${radius} ${spacing/2} 0.0" rpy="0.0 0.0 ${pi}"/>
+  </joint>
+  <joint name="positioner_joint" type="continuous">
+    <parent link="world"/>
+    <child link = "positioner_base"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+</robot>

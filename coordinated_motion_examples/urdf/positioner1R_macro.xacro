@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!--
+  A fictitious positioner model for testing purposes.
+  -->
+
+  <xacro:macro name="positioner1R_macro">
+    <xacro:property name="width" value="0.7"/>
+    <xacro:property name="height" value="0.01"/>
+    <xacro:property name="joint_radius" value="0.06" />
+    <xacro:property name="joint_length" value="0.01" />
+
+    <!-- links -->
+    <link name="positioner_base">
+      <visual name="joint">
+        <origin xyz="0 0 -${joint_length / 2.0}" rpy="0 0 0" />
+        <geometry>
+          <cylinder length="${joint_length}" radius="${joint_radius}"/>
+        </geometry>
+        <material name="grey"/>
+      </visual>
+      <visual name="table">
+        <origin xyz="0 0 ${joint_length / 2.0}" rpy="0 0 0" />
+        <geometry>
+          <box size="${width} ${width} ${height}"/>
+        </geometry>
+        <material name="grey"/>
+      </visual>
+    </link>
+    <link name="positioner"/>
+
+    <!-- joints -->
+    <joint name="positioner_base_positioner" type="fixed">
+      <parent link="positioner_base"/>
+      <child link = "positioner"/>
+      <origin xyz="0.0 0.0 ${joint_length}" rpy="0.0 0.0 0.0"/>
+    </joint>
+
+  </xacro:macro>
+</robot>
