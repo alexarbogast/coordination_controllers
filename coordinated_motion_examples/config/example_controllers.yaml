@@ -1,0 +1,83 @@
+rob1:
+  position_trajectory_controller:
+    type: position_controllers/JointTrajectoryController
+    joints:
+      - rob1_joint1
+      - rob1_joint2
+      - rob1_joint3
+      - rob1_joint4
+      - rob1_joint5
+      - rob1_joint6
+    gains:
+      rob1_joint1:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+      rob1_joint2:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+      rob1_joint3:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+      rob1_joint4:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+      rob1_joint5:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+      rob1_joint6:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+
+rob2:
+  position_trajectory_controller:
+    type: position_controllers/JointTrajectoryController
+    joints:
+      - rob2_joint1
+      - rob2_joint2
+      - rob2_joint3
+      - rob2_joint4
+      - rob2_joint5
+      - rob2_joint6
+    gains:
+      rob2_joint1:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+      rob2_joint2:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+      rob2_joint3:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+      rob2_joint4:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+      rob2_joint5:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1
+      rob2_joint6:
+        p: 100
+        d: 1
+        i: 1
+        i_clamp: 1

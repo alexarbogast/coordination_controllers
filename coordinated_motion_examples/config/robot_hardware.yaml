@@ -1,0 +1,38 @@
+rob1:
+  generic_hw_control_loop:
+    loop_hz: 1000
+    cycle_time_error_threshold: 0.01
+
+  hardware_interface:
+    joints:
+      - rob1_joint1
+      - rob1_joint2
+      - rob1_joint3
+      - rob1_joint4
+      - rob1_joint5
+      - rob1_joint6
+    sim_control_mode: 0  # 0: position, 1: velocity
+
+  joint_state_controller:
+    type: joint_state_controller/JointStateController
+    publish_rate: 50
+
+
+rob2:
+  generic_hw_control_loop:
+    loop_hz: 1000
+    cycle_time_error_threshold: 0.01
+
+  hardware_interface:
+    joints:
+      - rob2_joint1
+      - rob2_joint2
+      - rob2_joint3
+      - rob2_joint4
+      - rob2_joint5
+      - rob2_joint6
+    sim_control_mode: 0  # 0: position, 1: velocity
+
+  joint_state_controller:
+    type: joint_state_controller/JointStateController
+    publish_rate: 50
