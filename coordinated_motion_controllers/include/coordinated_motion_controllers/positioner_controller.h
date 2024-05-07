@@ -10,10 +10,14 @@ class PositionerController : public controller_interface::Controller<
                                  hardware_interface::PositionJointInterface>
 {
 public:
-  bool init(hardware_interface::RobotHW* robot_hardware, ros::NodeHandle& nh);
-  void update(const ros::Time&, const ros::Duration& period) override;
-  void starting(const ros::Time&) override;
-  void stopping(const ros::Time&) override;
+  virtual bool init(hardware_interface::PositionJointInterface* hw,
+                    ros::NodeHandle& nh) override;
+  virtual void update(const ros::Time&, const ros::Duration& period) override;
+  virtual void starting(const ros::Time&) override;
+  virtual void stopping(const ros::Time&) override;
+
+protected:
+  std::vector<hardware_interface::JointHandle> joint_handles_;
 };
 
 }  // namespace coordinated_motion_controllers

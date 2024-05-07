@@ -42,6 +42,13 @@ rob1:
 
   coordinated_motion_controller:
     type: coordinated_motion_controllers/CoordinatedRobotController
+    joints:
+      - rob1_joint1
+      - rob1_joint2
+      - rob1_joint3
+      - rob1_joint4
+      - rob1_joint5
+      - rob1_joint6
   
 
 rob2:
@@ -88,6 +95,13 @@ rob2:
 
   coordinated_motion_controller:
     type: coordinated_motion_controllers/CoordinatedRobotController
+    joints:
+      - rob2_joint1
+      - rob2_joint2
+      - rob2_joint3
+      - rob2_joint4
+      - rob2_joint5
+      - rob2_joint6
 
 
 positioner:
@@ -104,4 +118,6 @@ positioner:
 
   positioner_controller:
     type: coordinated_motion_controllers/PositionerController
+    joints:
+      - positioner_joint
 
