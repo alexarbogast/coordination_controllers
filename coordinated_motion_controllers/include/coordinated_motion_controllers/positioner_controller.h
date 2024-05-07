@@ -17,4 +17,3 @@ public:
 };
 
 }  // namespace coordinated_motion_controllers
-

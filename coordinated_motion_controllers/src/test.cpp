@@ -145,4 +145,3 @@ int main(int argc, char** argv)
   ROS_INFO("Executed successfully");
   return 0;
 }
-

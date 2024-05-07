@@ -7,7 +7,8 @@
 
   <!-- The list of the joint_states topics of all combined robots to fuse to a complete topic -->
   <arg name="joint_states_source_list" default="[rob1/joint_states, 
-                                                 rob2/joint_states]"/>
+                                                 rob2/joint_states,
+                                                 positioner/joint_states]"/>
 
   <!-- Load robot_description -->
   <param name="robot_description" command="xacro '$(find coordinated_motion_examples)/urdf/two_robot6R.xacro'"/>
@@ -20,14 +21,21 @@
     <node name="sim_hw_interface" pkg="ros_control_boilerplate" type="sim_hw_main"
           output="screen" launch-prefix="$(arg launch_prefix)"/>
     <node name="ros_control_controller_manager" pkg="controller_manager" type="controller_manager" 
-          respawn="false" output="screen" args="spawn joint_state_controller"/>
+          respawn="false" output="screen" args="spawn joint_state_controller coordinated_motion_controller"/>
   </group>
 
   <group ns="rob2">
     <node name="sim_hw_interface" pkg="ros_control_boilerplate" type="sim_hw_main"
           output="screen" launch-prefix="$(arg launch_prefix)"/>
     <node name="ros_control_controller_manager" pkg="controller_manager" type="controller_manager" 
-          respawn="false" output="screen" args="spawn joint_state_controller"/>
+          respawn="false" output="screen" args="spawn joint_state_controller coordinated_motion_controller"/>
+  </group>
+
+  <group ns="positioner">
+    <node name="sim_hw_interface" pkg="ros_control_boilerplate" type="sim_hw_main"
+          output="screen" launch-prefix="$(arg launch_prefix)"/>
+    <node name="ros_control_controller_manager" pkg="controller_manager" type="controller_manager" 
+          respawn="false" output="screen" args="spawn joint_state_controller positioner_controller"/>
   </group>
   
   <!-- Published fused joint states and robot state -->
