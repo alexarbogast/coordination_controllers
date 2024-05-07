@@ -13,7 +13,12 @@ find_package(catkin REQUIRED COMPONENTS
   urdf
   kdl_parser
   eigen_conversions
+  hardware_interface
+  controller_interface
+  pluginlib
 )
+
+find_package(Eigen3 REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -23,6 +28,9 @@ catkin_package(
     urdf
     kdl_parser
     eigen_conversions
+    hardware_interface
+    controller_interface
+    pluginlib
 )
 
 include_directories(
@@ -32,7 +40,20 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME} src/coordinated_robot_controller.cpp)
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen)
 
 add_executable(coordinated_motion_test src/test.cpp)
 target_link_libraries(coordinated_motion_test ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+## Installation
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+install(FILES coordinated_controller_plugins.xml
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)

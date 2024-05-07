@@ -1,0 +1,12 @@
+<library path="lib/libcoordinated_motion_controllers">
+  <class name="coordinated_motion_controllers/PositionerController" type="coordinated_motion_controllers::PositionerController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      positioner controller
+    </description>
+  </class>
+  <class name="coordinated_motion_controllers/CoordinatedRobotController" type="coordinated_motion_controllers::CoordinatedRobotController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      coordinated robot controller
+    </description>
+  </class>
+</library>
