@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   urdf
   kdl_parser
   eigen_conversions
+  sensor_msgs
   hardware_interface
   controller_interface
   pluginlib
@@ -28,6 +29,7 @@ catkin_package(
     urdf
     kdl_parser
     eigen_conversions
+    sensor_msgs
     hardware_interface
     controller_interface
     pluginlib

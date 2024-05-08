@@ -12,6 +12,7 @@
   <depend>urdf</depend>
   <depend>kdl_parser</depend>
   <depend>eigen_conversions</depend>
+  <depend>sensor_msgs</depend>
   <depend>hardware_interface</depend>
   <depend>controller_interface</depend>
   <depend>pluginlib</depend>

@@ -1,45 +1,4 @@
 rob1:
-  position_trajectory_controller:
-    type: position_controllers/JointTrajectoryController
-    joints:
-      - rob1_joint1
-      - rob1_joint2
-      - rob1_joint3
-      - rob1_joint4
-      - rob1_joint5
-      - rob1_joint6
-    gains:
-      rob1_joint1:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-      rob1_joint2:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-      rob1_joint3:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-      rob1_joint4:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-      rob1_joint5:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-      rob1_joint6:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-
   coordinated_motion_controller:
     type: coordinated_motion_controllers/CoordinatedRobotController
     joints:
@@ -49,50 +8,13 @@ rob1:
       - rob1_joint4
       - rob1_joint5
       - rob1_joint6
+
+    positioner_link: positioner
+    base_link: rob1_base_link
+    eef_link: rob1_tool0
   
 
 rob2:
-  position_trajectory_controller:
-    type: position_controllers/JointTrajectoryController
-    joints:
-      - rob2_joint1
-      - rob2_joint2
-      - rob2_joint3
-      - rob2_joint4
-      - rob2_joint5
-      - rob2_joint6
-    gains:
-      rob2_joint1:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-      rob2_joint2:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-      rob2_joint3:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-      rob2_joint4:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-      rob2_joint5:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-      rob2_joint6:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-
   coordinated_motion_controller:
     type: coordinated_motion_controllers/CoordinatedRobotController
     joints:
@@ -103,21 +25,17 @@ rob2:
       - rob2_joint5
       - rob2_joint6
 
+    positioner_link: positioner
+    base_link: rob2_base_link
+    eef_link: rob2_tool0
+
 
 positioner:
-  position_trajectory_controller:
-    type: position_controllers/JointTrajectoryController
-    joints:
-      - positioner_joint
-    gains:
-      positioner_joint:
-        p: 100
-        d: 1
-        i: 1
-        i_clamp: 1
-
   positioner_controller:
     type: coordinated_motion_controllers/PositionerController
     joints:
       - positioner_joint
 
+    coordinated_controllers:
+      - /rob1/coordinated_motion_controller
+      - /rob2/coordinated_motion_controller
