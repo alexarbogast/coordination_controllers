@@ -4,6 +4,7 @@
 #include <urdf/model.h>
 #include <kdl/chain.hpp>
 #include <kdl/jacobian.hpp>
+#include <kdl/jntarray.hpp>
 #include <kdl/tree.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 
@@ -95,10 +96,10 @@ bool CoordinatedRobotController::init(
                                        << " from parameter server");
     return false;
   }
-  n_joints_ = joint_names.size();
+  n_robot_joints_ = joint_names.size();
 
-  joint_handles_.resize(n_joints_);
-  for (size_t i = 0; i < n_joints_; ++i)
+  joint_handles_.resize(n_robot_joints_);
+  for (size_t i = 0; i < n_robot_joints_; ++i)
   {
     try
     {
@@ -112,13 +113,35 @@ bool CoordinatedRobotController::init(
     }
   }
 
-  // Initialize state
-  robot_position_.data = Eigen::VectorXd::Zero(n_joints_);
-  positioner_position_.data =
-      Eigen::VectorXd::Zero(1);  // TODO: find # of positioner joints
+  // Setup positioner joint state
+  std::string positioner_topic;
+  if (!nh.getParam("positioner_topic", positioner_topic))
+  {
+    ROS_ERROR_STREAM("Failed to load " << ns << "/positioner_topic"
+                                       << " from parameter server");
+    return false;
+  }
 
-  robot_velocity_.data = Eigen::VectorXd::Zero(n_joints_);
-  positioner_velocity_.data = Eigen::VectorXd::Zero(1);
+  sensor_msgs::JointStateConstPtr pos_joint_state =
+      ros::topic::waitForMessage<sensor_msgs::JointState>(positioner_topic,
+                                                          ros::Duration(10));
+  if (pos_joint_state == NULL)
+  {
+    ROS_ERROR_STREAM("Timed out waiting for topic:" << positioner_topic);
+    return false;
+  }
+  n_pos_joints_ = pos_joint_state->name.size();
+
+  robot_position_.data = Eigen::VectorXd::Zero(n_robot_joints_);
+  robot_velocity_.data = Eigen::VectorXd::Zero(n_robot_joints_);
+
+  posJointStateCallback(pos_joint_state);
+
+  // Setup ROS components
+  sub_positioner_joint_states_ =
+      nh.subscribe(positioner_topic, 1,
+                   &CoordinatedRobotController::posJointStateCallback, this);
+
   return true;
 }
 
@@ -132,20 +155,26 @@ void CoordinatedRobotController::update(const ros::Time&,
   synchronizeJointStates();
 
   Eigen::Matrix<double, 6, 1> setpoint;
-  setpoint << -0.1, -0.05, 0.01, 0.0, 0.0, 0.01;
+  setpoint << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
 
-  KDL::Jacobian jac(n_joints_);
-  robot_jacobian_solver_->JntToJac(robot_position_, jac);
+  KDL::JntArray combined_position(n_robot_joints_ + n_pos_joints_);
+  combined_position.data << positioner_position_.readFromRT()->data,
+      robot_position_.data;
+
+  KDL::Jacobian jac(combined_position.rows());
+  coordinated_jacobian_solver_->JntToJac(combined_position, jac);
+
+  Eigen::MatrixXd Jr = jac.data.block(0, n_pos_joints_, 6, n_robot_joints_);
+  Eigen::MatrixXd Jp = jac.data.block(0, 0, 6, n_pos_joints_);
 
   Eigen::Matrix<double, 6, 1> cmd =
-      jac.data.transpose() *
-      (jac.data * jac.data.transpose() + alpha * alpha * identity6x6)
-          .inverse() *
-      setpoint;
+      (Jr.transpose() *
+       (Jr * Jr.transpose() + alpha * alpha * identity6x6).inverse()) *
+      (setpoint - Jp * positioner_velocity_.readFromRT()->data);
 
   auto new_position = robot_position_.data + (cmd * period.toSec());
 
-  for (unsigned int i = 0; i < n_joints_; ++i)
+  for (unsigned int i = 0; i < n_robot_joints_; ++i)
   {
     joint_handles_[i].setCommand(new_position[i]);
   }
@@ -160,16 +189,29 @@ void CoordinatedRobotController::stopping(const ros::Time&) {}
 
 void CoordinatedRobotController::synchronizeJointStates()
 {
-  // Read feedback
-  for (unsigned int i = 0; i < n_joints_; ++i)
+  // Synchronize the internal state with the hardware
+  for (unsigned int i = 0; i < n_robot_joints_; ++i)
   {
     robot_position_(i) = joint_handles_[i].getPosition();
     robot_velocity_(i) = joint_handles_[i].getVelocity();
   }
 }
 
+void CoordinatedRobotController::posJointStateCallback(
+    const sensor_msgs::JointStateConstPtr& msg)
+{
+  KDL::JntArray position(n_pos_joints_);
+  KDL::JntArray velocity(n_pos_joints_);
+  for (size_t i = 0; i < n_pos_joints_; ++i)
+  {
+    position(i) = msg->position[i];
+    velocity(i) = msg->velocity[i];
+  }
+  positioner_position_.writeFromNonRT(position);
+  positioner_velocity_.writeFromNonRT(velocity);
+}
+
 }  // namespace coordinated_motion_controllers
-//
 
 PLUGINLIB_EXPORT_CLASS(
     coordinated_motion_controllers::CoordinatedRobotController,

@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   hardware_interface
   controller_interface
+  realtime_tools
   pluginlib
 )
 
@@ -32,6 +33,7 @@ catkin_package(
     sensor_msgs
     hardware_interface
     controller_interface
+    realtime_tools
     pluginlib
 )
 

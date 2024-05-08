@@ -1,8 +1,7 @@
 #pragma once
 
-#include <kdl/jntarray.hpp>
-#include <memory>
 #include <unordered_map>
+#include <kdl/jntarray.hpp>
 
 #include <sensor_msgs/JointState.h>
 
@@ -21,6 +20,7 @@ struct CoordinatedRobotData
 
   std::string controller_ns;
   std::vector<std::string> joints;
+  size_t n_joints;
 
   // state
   std::vector<size_t> joint_state_indices;
@@ -37,10 +37,15 @@ public:
   virtual void starting(const ros::Time&) override;
   virtual void stopping(const ros::Time&) override;
 
-protected:
+private:
+  void jointStateCallback(const sensor_msgs::JointStateConstPtr& msg);
+
+private:
   std::vector<hardware_interface::JointHandle> joint_handles_;
   std::unordered_map<std::string, std::shared_ptr<CoordinatedRobotData>>
       robot_data_;
+
+  ros::Subscriber sub_joint_states_;
 };
 
 }  // namespace coordinated_motion_controllers
