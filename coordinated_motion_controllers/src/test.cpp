@@ -11,8 +11,6 @@
 
 #include <ros/ros.h>
 
-#include <coordinated_motion_controllers/kinematics.h>
-
 static const std::string NAME = "coordinated_motion_test";
 
 // ros parameters

@@ -10,6 +10,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <exec_depend>coordinated_motion_controllers</exec_depend>
   <exec_depend>coordinated_motion_examples</exec_depend>
+  <exec_depend>coordinated_control_msgs</exec_depend>
 
   <export>
     <metapackage/>

@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   kdl_parser
   eigen_conversions
   sensor_msgs
+  coordinated_control_msgs
   hardware_interface
   controller_interface
   realtime_tools
@@ -31,6 +32,7 @@ catkin_package(
     kdl_parser
     eigen_conversions
     sensor_msgs
+    coordinated_control_msgs
     hardware_interface
     controller_interface
     realtime_tools
@@ -48,6 +50,7 @@ add_library(${PROJECT_NAME}
   src/positioner_controller.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen)
+add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 
 add_executable(coordinated_motion_test src/test.cpp)
 target_link_libraries(coordinated_motion_test ${PROJECT_NAME} ${catkin_LIBRARIES})

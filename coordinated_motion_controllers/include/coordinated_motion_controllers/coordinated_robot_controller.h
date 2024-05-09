@@ -5,6 +5,7 @@
 #include <kdl/jntarray.hpp>
 
 #include <sensor_msgs/JointState.h>
+#include <coordinated_control_msgs/AxiallySymmetricPose.h>
 #include <realtime_tools/realtime_buffer.h>
 
 #include <controller_interface/controller.h>
