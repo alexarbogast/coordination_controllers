@@ -9,11 +9,19 @@ rob1:
       - rob1_joint5
       - rob1_joint6
 
+    alpha: 0.1
+    gains:
+      position: 1.0
+      aiming: 1.0
+
+    aiming_vec: [0.0, 1.0, 0.0]
+
     positioner_link: positioner
     base_link: rob1_base_link
     eef_link: rob1_tool0
 
     positioner_topic: /positioner/joint_states
+    setpoint_topic: setpoint
   
 
 rob2:
@@ -27,11 +35,19 @@ rob2:
       - rob2_joint5
       - rob2_joint6
 
+    alpha: 0.1
+    gains:
+      position: 1.0
+      aiming: 1.0
+
+    aiming_vec: [0.0, 1.0, 0.0]
+
     positioner_link: positioner
     base_link: rob2_base_link
     eef_link: rob2_tool0
 
     positioner_topic: /positioner/joint_states
+    setpoint_topic: setpoint
 
 
 positioner:

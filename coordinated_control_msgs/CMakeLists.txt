@@ -10,6 +10,7 @@ add_message_files(
   DIRECTORY msg
   FILES
     AxiallySymmetricPose.msg
+    Setpoint.msg
 )
 
 generate_messages(
