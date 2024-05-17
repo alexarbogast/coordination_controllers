@@ -12,8 +12,8 @@
 namespace coordinated_motion_controllers
 {
 
-static const Eigen::Matrix<double, 6, 6> identity6x6 =
-    Eigen::Matrix<double, 6, 6>::Identity();
+static const Eigen::Matrix<double, 5, 5> identity5x5 =
+    Eigen::Matrix<double, 5, 5>::Identity();
 
 Setpoint::Setpoint()
   : position(Eigen::Vector3d::Zero())
@@ -194,32 +194,8 @@ void CoordinatedRobotController::update(const ros::Time&,
                                         const ros::Duration& period)
 {
   synchronizeJointStates();  // update state
-  baseFrameControl(period);
-
-  // Eigen::Matrix<double, 6, 1> setpoint;
-  // setpoint << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
-
-  // KDL::JntArray combined_position(n_robot_joints_ + n_pos_joints_);
-  // combined_position.data << positioner_position_.readFromRT()->data,
-  //     robot_position_.data;
-  //
-  // KDL::Jacobian jac(combined_position.rows());
-  // coordinated_jacobian_solver_->JntToJac(combined_position, jac);
-  //
-  // Eigen::MatrixXd Jr = jac.data.block(0, n_pos_joints_, 6, n_robot_joints_);
-  // Eigen::MatrixXd Jp = jac.data.block(0, 0, 6, n_pos_joints_);
-
-  // Eigen::Matrix<double, 6, 1> cmd =
-  //    (Jr.transpose() *
-  //     (Jr * Jr.transpose() + alpha * alpha * identity6x6).inverse()) *
-  //    (setpoint - Jp * positioner_velocity_.readFromRT()->data);
-
-  // auto new_position = robot_position_.data + (cmd * period.toSec());
-  //
-  // for (unsigned int i = 0; i < n_robot_joints_; ++i)
-  // {
-  //   joint_handles_[i].setCommand(new_position[i]);
-  // }
+  // baseFrameControl(period);
+  coordinatedControl(period);
 }
 
 void CoordinatedRobotController::starting(const ros::Time&)
@@ -227,14 +203,32 @@ void CoordinatedRobotController::starting(const ros::Time&)
   synchronizeJointStates();
 
   // initialize setpoint pose with current position
-  KDL::Frame init_pose;
-  robot_fk_solver_->JntToCart(robot_position_, init_pose);
+  // TODO: switch initialization based on coordinated or bf control
+  static bool coordinated = true;
+
+  KDL::Frame init_pose_bf;
+  robot_fk_solver_->JntToCart(robot_position_, init_pose_bf);
 
   Setpoint init_setpoint;
-  init_setpoint.position = Eigen::Vector3d(init_pose.p.data);
   init_setpoint.velocity = Eigen::Vector3d::Zero();
   init_setpoint.aiming =
-      Eigen::Matrix3d(init_pose.M.Inverse().data) * aiming_vec_;
+      Eigen::Matrix3d(init_pose_bf.M.Inverse().data) * aiming_vec_;
+
+  if (coordinated)
+  {
+    KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
+    combined_positions.data << positioner_position_.readFromRT()->data,
+        robot_position_.data;
+
+    KDL::Frame init_pose_pf;
+    coordinated_fk_solver_->JntToCart(combined_positions, init_pose_pf);
+    init_setpoint.position = Eigen::Vector3d(init_pose_pf.p.data);
+  }
+  else
+  {
+    init_setpoint.position = Eigen::Vector3d(init_pose_bf.p.data);
+  }
+
   setpoint_.initRT(init_setpoint);
 }
 
@@ -242,6 +236,59 @@ void CoordinatedRobotController::stopping(const ros::Time&) {}
 
 void CoordinatedRobotController::coordinatedControl(const ros::Duration& period)
 {
+  Setpoint* setpoint = setpoint_.readFromRT();
+
+  KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
+  combined_positions.data << positioner_position_.readFromRT()->data,
+      robot_position_.data;
+
+  KDL::Jacobian rob_jac(n_robot_joints_);
+  KDL::Jacobian coord_jac(n_robot_joints_ + n_pos_joints_);
+  robot_jacobian_solver_->JntToJac(robot_position_, rob_jac);
+  coordinated_jacobian_solver_->JntToJac(combined_positions, coord_jac);
+
+  KDL::Frame pose_pf, pose_bf;
+  robot_fk_solver_->JntToCart(robot_position_, pose_bf);
+  coordinated_fk_solver_->JntToCart(combined_positions, pose_pf);
+
+  // orientation error
+  Eigen::Vector3d aiming_bf =
+      Eigen::Matrix3d(pose_bf.M.Inverse().data) * aiming_vec_;
+
+  Eigen::Vector3d rot_axis = aiming_bf.cross(setpoint->aiming).normalized();
+  double rot_angle = acos(aiming_bf.dot(setpoint->aiming) /
+                          (aiming_bf.norm() * setpoint->aiming.norm()));
+
+  Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
+  orient_error *= rot_angle;
+
+  // position error
+  Eigen::Vector3d pos_error =
+      setpoint->position - Eigen::Vector3d(pose_pf.p.data);
+
+  // control
+  Eigen::Matrix<double, 5, 1> cart_cmd;
+  cart_cmd << k_position_ * pos_error + setpoint->velocity,
+      k_aiming_ * orient_error;
+
+  Eigen::MatrixXd Jr =
+      coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
+  Jr.block(3, 0, 2, n_robot_joints_) =
+      rob_jac.data.block(3, 0, 2, n_robot_joints_);
+
+  Eigen::MatrixXd Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
+  Jp.block(3, 0, 2, n_pos_joints_) = Eigen::Vector2d::Zero();
+
+  Eigen::Matrix<double, 6, 1> joint_cmd =
+      (Jr.transpose() *
+       (Jr * Jr.transpose() + alpha_ * alpha_ * identity5x5).inverse()) *
+      (cart_cmd - Jp * positioner_velocity_.readFromRT()->data);
+
+  auto new_position = robot_position_.data + (joint_cmd * period.toSec());
+  for (unsigned int i = 0; i < n_robot_joints_; ++i)
+  {
+    joint_handles_[i].setCommand(new_position[i]);
+  }
 }
 
 void CoordinatedRobotController::baseFrameControl(const ros::Duration& period)
@@ -255,23 +302,29 @@ void CoordinatedRobotController::baseFrameControl(const ros::Duration& period)
   robot_fk_solver_->JntToCart(robot_position_, pose);
 
   // orientation error
-  Eigen::Vector3d aiming_base =
+  Eigen::Vector3d aiming_b =
       Eigen::Matrix3d(pose.M.Inverse().data) * aiming_vec_;
 
-  Eigen::Vector3d rot_axis = aiming_base.cross(setpoint->aiming).normalized();
-  double rot_angle = acos(aiming_base.dot(setpoint->aiming) /
-                          (aiming_base.norm() * setpoint->aiming.norm()));
-  rot_axis *= rot_angle;
+  Eigen::Vector3d rot_axis = aiming_b.cross(setpoint->aiming).normalized();
+  double rot_angle = acos(aiming_b.dot(setpoint->aiming) /
+                          (aiming_b.norm() * setpoint->aiming.norm()));
+
+  Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
+  orient_error *= rot_angle;
+
+  // position error
+  Eigen::Vector3d pos_error = setpoint->position - Eigen::Vector3d(pose.p.data);
 
   // control
   Eigen::Matrix<double, 5, 1> cart_cmd;
-  cart_cmd << 0.0, 0.0, 0.0, rot_axis.x(), rot_axis.y();
+  cart_cmd << k_position_ * pos_error + setpoint->velocity,
+      k_aiming_ * orient_error;
 
-  Eigen::MatrixXd Jr = jac.data.block(0, 0, 6, n_robot_joints_);
+  Eigen::MatrixXd Jr = jac.data.block(0, 0, 5, n_robot_joints_);
 
   Eigen::Matrix<double, 6, 1> joint_cmd =
       (Jr.transpose() *
-       (Jr * Jr.transpose() + alpha_ * alpha_ * identity6x6).inverse()) *
+       (Jr * Jr.transpose() + alpha_ * alpha_ * identity5x5).inverse()) *
       cart_cmd;
 
   auto new_position = robot_position_.data + (joint_cmd * period.toSec());
