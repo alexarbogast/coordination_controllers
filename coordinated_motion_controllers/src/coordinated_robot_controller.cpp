@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include <urdf/model.h>
+#include <kdl/jntarrayvel.hpp>
 #include <kdl/tree.hpp>
 #include <kdl/jacobian.hpp>
 #include <kdl/frames.hpp>
@@ -19,13 +20,6 @@ Setpoint::Setpoint()
   : position(Eigen::Vector3d::Zero())
   , aiming(Eigen::Vector3d::Zero())
   , velocity(Eigen::Vector3d::Zero())
-{
-}
-
-Setpoint::Setpoint(const Eigen::Vector3d& position,
-                   const Eigen::Vector3d& aiming,
-                   const Eigen::Vector3d& velocity)
-  : position(position), aiming(aiming), velocity(velocity)
 {
 }
 
@@ -147,11 +141,9 @@ bool CoordinatedRobotController::init(
     return false;
   }
   n_pos_joints_ = pos_joint_state->name.size();
-
-  robot_position_.data = Eigen::VectorXd::Zero(n_robot_joints_);
-  robot_velocity_.data = Eigen::VectorXd::Zero(n_robot_joints_);
-
   posJointStateCallback(pos_joint_state);
+
+  robot_state_.resize(n_robot_joints_);
 
   // Find setpoint topic
   std::string setpoint_topic;
@@ -207,7 +199,7 @@ void CoordinatedRobotController::starting(const ros::Time&)
   static bool coordinated = true;
 
   KDL::Frame init_pose_bf;
-  robot_fk_solver_->JntToCart(robot_position_, init_pose_bf);
+  robot_fk_solver_->JntToCart(robot_state_.q, init_pose_bf);
 
   Setpoint init_setpoint;
   init_setpoint.velocity = Eigen::Vector3d::Zero();
@@ -217,8 +209,8 @@ void CoordinatedRobotController::starting(const ros::Time&)
   if (coordinated)
   {
     KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-    combined_positions.data << positioner_position_.readFromRT()->data,
-        robot_position_.data;
+    combined_positions.data << positioner_state_.readFromRT()->q.data,
+        robot_state_.q.data;
 
     KDL::Frame init_pose_pf;
     coordinated_fk_solver_->JntToCart(combined_positions, init_pose_pf);
@@ -239,16 +231,16 @@ void CoordinatedRobotController::coordinatedControl(const ros::Duration& period)
   Setpoint* setpoint = setpoint_.readFromRT();
 
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-  combined_positions.data << positioner_position_.readFromRT()->data,
-      robot_position_.data;
+  combined_positions.data << positioner_state_.readFromRT()->q.data,
+      robot_state_.q.data;
 
   KDL::Jacobian rob_jac(n_robot_joints_);
   KDL::Jacobian coord_jac(n_robot_joints_ + n_pos_joints_);
-  robot_jacobian_solver_->JntToJac(robot_position_, rob_jac);
+  robot_jacobian_solver_->JntToJac(robot_state_.q, rob_jac);
   coordinated_jacobian_solver_->JntToJac(combined_positions, coord_jac);
 
   KDL::Frame pose_pf, pose_bf;
-  robot_fk_solver_->JntToCart(robot_position_, pose_bf);
+  robot_fk_solver_->JntToCart(robot_state_.q, pose_bf);
   coordinated_fk_solver_->JntToCart(combined_positions, pose_pf);
 
   // orientation error
@@ -282,9 +274,9 @@ void CoordinatedRobotController::coordinatedControl(const ros::Duration& period)
   Eigen::Matrix<double, 6, 1> joint_cmd =
       (Jr.transpose() *
        (Jr * Jr.transpose() + alpha_ * alpha_ * identity5x5).inverse()) *
-      (cart_cmd - Jp * positioner_velocity_.readFromRT()->data);
+      (cart_cmd - Jp * positioner_state_.readFromRT()->qdot.data);
 
-  auto new_position = robot_position_.data + (joint_cmd * period.toSec());
+  auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
   {
     joint_handles_[i].setCommand(new_position[i]);
@@ -296,10 +288,10 @@ void CoordinatedRobotController::baseFrameControl(const ros::Duration& period)
   Setpoint* setpoint = setpoint_.readFromRT();
 
   KDL::Jacobian jac(n_robot_joints_);
-  robot_jacobian_solver_->JntToJac(robot_position_, jac);
+  robot_jacobian_solver_->JntToJac(robot_state_.q, jac);
 
   KDL::Frame pose;
-  robot_fk_solver_->JntToCart(robot_position_, pose);
+  robot_fk_solver_->JntToCart(robot_state_.q, pose);
 
   // orientation error
   Eigen::Vector3d aiming_b =
@@ -327,7 +319,7 @@ void CoordinatedRobotController::baseFrameControl(const ros::Duration& period)
        (Jr * Jr.transpose() + alpha_ * alpha_ * identity5x5).inverse()) *
       cart_cmd;
 
-  auto new_position = robot_position_.data + (joint_cmd * period.toSec());
+  auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
   {
     joint_handles_[i].setCommand(new_position[i]);
@@ -339,23 +331,23 @@ void CoordinatedRobotController::synchronizeJointStates()
   // Synchronize the internal state with the hardware
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
   {
-    robot_position_(i) = joint_handles_[i].getPosition();
-    robot_velocity_(i) = joint_handles_[i].getVelocity();
+    robot_state_.q(i) = joint_handles_[i].getPosition();
+    robot_state_.qdot(i) = joint_handles_[i].getVelocity();
   }
 }
 
 void CoordinatedRobotController::posJointStateCallback(
     const sensor_msgs::JointStateConstPtr& msg)
 {
+  KDL::JntArrayVel pos_state(n_pos_joints_);
   KDL::JntArray position(n_pos_joints_);
   KDL::JntArray velocity(n_pos_joints_);
   for (size_t i = 0; i < n_pos_joints_; ++i)
   {
-    position(i) = msg->position[i];
-    velocity(i) = msg->velocity[i];
+    pos_state.q(i) = msg->position[i];
+    pos_state.qdot(i) = msg->velocity[i];
   }
-  positioner_position_.writeFromNonRT(position);
-  positioner_velocity_.writeFromNonRT(velocity);
+  positioner_state_.writeFromNonRT(pos_state);
 }
 
 void CoordinatedRobotController::setpointCallback(

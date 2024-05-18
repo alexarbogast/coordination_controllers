@@ -11,8 +11,8 @@ rob1:
 
     alpha: 0.1
     gains:
-      position: 1.0
-      aiming: 1.0
+      position: 5.0
+      aiming: 5.0
 
     aiming_vec: [0.0, 1.0, 0.0]
 
@@ -37,8 +37,8 @@ rob2:
 
     alpha: 0.1
     gains:
-      position: 1.0
-      aiming: 1.0
+      position: 10.0
+      aiming: 10.0
 
     aiming_vec: [0.0, 1.0, 0.0]
 

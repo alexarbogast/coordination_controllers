@@ -2,7 +2,7 @@
 
 #include <kdl/chainjnttojacsolver.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
-#include <kdl/jntarray.hpp>
+#include <kdl/jntarrayvel.hpp>
 
 #include <sensor_msgs/JointState.h>
 #include <coordinated_control_msgs/Setpoint.h>
@@ -17,13 +17,12 @@ namespace coordinated_motion_controllers
 struct Setpoint
 {
   Setpoint();
-  Setpoint(const Eigen::Vector3d& position, const Eigen::Vector3d& aiming,
-           const Eigen::Vector3d& velocity);
 
   Eigen::Vector3d position;
   Eigen::Vector3d aiming;
   Eigen::Vector3d velocity;
 };
+
 
 class CoordinatedRobotController
   : public controller_interface::Controller<
@@ -62,9 +61,8 @@ private:
   std::unique_ptr<KDL::ChainFkSolverPos_recursive> robot_fk_solver_;
 
   // state
-  KDL::JntArray robot_position_, robot_velocity_;
-  realtime_tools::RealtimeBuffer<KDL::JntArray> positioner_position_;
-  realtime_tools::RealtimeBuffer<KDL::JntArray> positioner_velocity_;
+  KDL::JntArrayVel robot_state_;
+  realtime_tools::RealtimeBuffer<KDL::JntArrayVel> positioner_state_;
 
   ros::Subscriber sub_positioner_joint_states_;
 

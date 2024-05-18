@@ -105,12 +105,13 @@ bool PositionerController::init(hardware_interface::PositionJointInterface* hw,
   return true;
 }
 
-void PositionerController::update(const ros::Time&, const ros::Duration& period)
+void PositionerController::update(const ros::Time& time, const ros::Duration& period)
 {
   for (auto& handle : joint_handles_)
   {
     double old = handle.getPosition();
-    handle.setCommand(old + 0.0005);
+    //handle.setCommand(old + 0.0005);
+    handle.setCommand(sin(time.toSec()));
   }
 }
 
