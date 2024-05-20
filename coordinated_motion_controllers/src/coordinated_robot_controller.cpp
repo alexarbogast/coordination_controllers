@@ -154,15 +154,7 @@ bool CoordinatedRobotController::init(
     return false;
   }
 
-  // Read controller parameters
-  alpha_ = 0.1;
-  k_position_ = 1.0;
-  k_aiming_ = 1.0;
-
-  nh.getParam("alpha", alpha_);
-  nh.getParam("gains/position", k_position_);
-  nh.getParam("gains/aiming", k_aiming_);
-
+  // Read eef aiming vector (in base frame)
   std::vector<double> aiming_vec;
   if (!nh.getParam("aiming_vec", aiming_vec))
   {
@@ -179,6 +171,13 @@ bool CoordinatedRobotController::init(
 
   sub_setpoint_ = nh.subscribe(
       setpoint_topic, 1, &CoordinatedRobotController::setpointCallback, this);
+
+  // Dynamic reconfigure
+  dyn_reconf_server_ = std::make_shared<ReconfigureServer>(nh);
+  dyn_reconf_server_->setCallback(
+      std::bind(&CoordinatedRobotController::reconfCallback, this,
+                std::placeholders::_1, std::placeholders::_2));
+
   return true;
 }
 
@@ -228,7 +227,8 @@ void CoordinatedRobotController::stopping(const ros::Time&) {}
 
 void CoordinatedRobotController::coordinatedControl(const ros::Duration& period)
 {
-  Setpoint* setpoint = setpoint_.readFromRT();
+  const DynamicParams* params = dynamic_params_.readFromRT();
+  const Setpoint* setpoint = setpoint_.readFromRT();
 
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
   combined_positions.data << positioner_state_.readFromRT()->q.data,
@@ -260,8 +260,8 @@ void CoordinatedRobotController::coordinatedControl(const ros::Duration& period)
 
   // control
   Eigen::Matrix<double, 5, 1> cart_cmd;
-  cart_cmd << k_position_ * pos_error + setpoint->velocity,
-      k_aiming_ * orient_error;
+  cart_cmd << params->k_position * pos_error + setpoint->velocity,
+      params->k_aiming * orient_error;
 
   Eigen::MatrixXd Jr =
       coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
@@ -271,10 +271,12 @@ void CoordinatedRobotController::coordinatedControl(const ros::Duration& period)
   Eigen::MatrixXd Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
   Jp.block(3, 0, 2, n_pos_joints_) = Eigen::Vector2d::Zero();
 
-  Eigen::Matrix<double, 6, 1> joint_cmd =
-      (Jr.transpose() *
-       (Jr * Jr.transpose() + alpha_ * alpha_ * identity5x5).inverse()) *
-      (cart_cmd - Jp * positioner_state_.readFromRT()->qdot.data);
+  Eigen::MatrixXd Jr_pinv =
+      Jr.transpose() *
+      (Jr * Jr.transpose() + params->alpha * params->alpha * identity5x5)
+          .inverse();
+  Eigen::VectorXd joint_cmd =
+      Jr_pinv * (cart_cmd - Jp * positioner_state_.readFromRT()->qdot.data);
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
@@ -285,7 +287,8 @@ void CoordinatedRobotController::coordinatedControl(const ros::Duration& period)
 
 void CoordinatedRobotController::baseFrameControl(const ros::Duration& period)
 {
-  Setpoint* setpoint = setpoint_.readFromRT();
+  const DynamicParams* params = dynamic_params_.readFromRT();
+  const Setpoint* setpoint = setpoint_.readFromRT();
 
   KDL::Jacobian jac(n_robot_joints_);
   robot_jacobian_solver_->JntToJac(robot_state_.q, jac);
@@ -309,15 +312,16 @@ void CoordinatedRobotController::baseFrameControl(const ros::Duration& period)
 
   // control
   Eigen::Matrix<double, 5, 1> cart_cmd;
-  cart_cmd << k_position_ * pos_error + setpoint->velocity,
-      k_aiming_ * orient_error;
+  cart_cmd << params->k_position * pos_error + setpoint->velocity,
+      params->k_aiming * orient_error;
 
   Eigen::MatrixXd Jr = jac.data.block(0, 0, 5, n_robot_joints_);
 
-  Eigen::Matrix<double, 6, 1> joint_cmd =
-      (Jr.transpose() *
-       (Jr * Jr.transpose() + alpha_ * alpha_ * identity5x5).inverse()) *
-      cart_cmd;
+  Eigen::MatrixXd Jr_pinv =
+      Jr.transpose() *
+      (Jr * Jr.transpose() + params->alpha * params->alpha * identity5x5)
+          .inverse();
+  Eigen::VectorXd joint_cmd = Jr_pinv * cart_cmd;
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
@@ -368,6 +372,17 @@ void CoordinatedRobotController::setpointCallback(
                            msg->velocity.z;
   // clang-format on
   setpoint_.writeFromNonRT(new_setpoint);
+}
+
+void CoordinatedRobotController::reconfCallback(
+    CoordinatedControllerConfig& config, uint16_t /*level*/)
+{
+  DynamicParams dynamic_params;
+  dynamic_params.alpha = config.alpha;
+  dynamic_params.k_position = config.k_position;
+  dynamic_params.k_aiming = config.k_aiming;
+
+  dynamic_params_.writeFromNonRT(dynamic_params);
 }
 
 }  // namespace coordinated_motion_controllers

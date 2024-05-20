@@ -7,6 +7,8 @@
 #include <sensor_msgs/JointState.h>
 #include <coordinated_control_msgs/Setpoint.h>
 #include <realtime_tools/realtime_buffer.h>
+#include <dynamic_reconfigure/server.h>
+#include <coordinated_motion_controllers/CoordinatedControllerConfig.h>
 
 #include <controller_interface/controller.h>
 #include <hardware_interface/joint_command_interface.h>
@@ -23,7 +25,6 @@ struct Setpoint
   Eigen::Vector3d velocity;
 };
 
-
 class CoordinatedRobotController
   : public controller_interface::Controller<
         hardware_interface::PositionJointInterface>
@@ -39,6 +40,7 @@ private:
   void synchronizeJointStates();
   void posJointStateCallback(const sensor_msgs::JointStateConstPtr& msg);
   void setpointCallback(const coordinated_control_msgs::SetpointConstPtr& msg);
+  void reconfCallback(CoordinatedControllerConfig& config, uint16_t /*level*/);
 
   // control methods
   void coordinatedControl(const ros::Duration& period);
@@ -49,8 +51,6 @@ private:
   std::vector<hardware_interface::JointHandle> joint_handles_;
   std::string positioner_link_, base_link_, eef_link_;
 
-  double alpha_;                  // pinv damping value
-  double k_position_, k_aiming_;  // gain values
   Eigen::Vector3d aiming_vec_;
 
   // kinematics
@@ -69,6 +69,21 @@ private:
   // setpoint
   realtime_tools::RealtimeBuffer<Setpoint> setpoint_;
   ros::Subscriber sub_setpoint_;
+
+  // dynamic reconfigure
+  struct DynamicParams
+  {
+    DynamicParams() : alpha(1.0), k_position(1.0), k_aiming(1.0) {}
+
+    double alpha;       // pinv damping value
+    double k_position;  // gain values
+    double k_aiming;
+  };
+  realtime_tools::RealtimeBuffer<DynamicParams> dynamic_params_;
+
+  typedef dynamic_reconfigure::Server<CoordinatedControllerConfig>
+      ReconfigureServer;
+  std::shared_ptr<ReconfigureServer> dyn_reconf_server_;
 };
 
 }  // namespace coordinated_motion_controllers

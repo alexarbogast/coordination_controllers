@@ -18,10 +18,15 @@ find_package(catkin REQUIRED COMPONENTS
   hardware_interface
   controller_interface
   realtime_tools
+  dynamic_reconfigure
   pluginlib
 )
 
 find_package(Eigen3 REQUIRED)
+
+generate_dynamic_reconfigure_options(
+  cfg/CoordinatedController.cfg
+)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -36,6 +41,7 @@ catkin_package(
     hardware_interface
     controller_interface
     realtime_tools
+    dynamic_reconfigure
     pluginlib
 )
 
@@ -50,7 +56,10 @@ add_library(${PROJECT_NAME}
   src/positioner_controller.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen)
-add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}
+  ${PROJECT_NAME}_gencfg
+  ${catkin_EXPORTED_TARGETS}
+)
 
 add_executable(coordinated_motion_test src/test.cpp)
 target_link_libraries(coordinated_motion_test ${PROJECT_NAME} ${catkin_LIBRARIES})
