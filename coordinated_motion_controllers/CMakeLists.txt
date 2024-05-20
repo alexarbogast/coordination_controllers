@@ -51,7 +51,8 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
 )
 
-add_library(${PROJECT_NAME} 
+add_library(${PROJECT_NAME}
+  src/robot_controller.cpp
   src/coordinated_robot_controller.cpp 
   src/positioner_controller.cpp
 )

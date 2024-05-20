@@ -1,4 +1,4 @@
-#include <coordinated_motion_controllers/coordinated_robot_controller.h>
+#include <coordinated_motion_controllers/robot_controller.h>
 
 #include <urdf/model.h>
 #include <kdl/jntarrayvel.hpp>
@@ -15,8 +15,8 @@ namespace coordinated_motion_controllers
 static const Eigen::Matrix<double, 5, 5> identity5x5 =
     Eigen::Matrix<double, 5, 5>::Identity();
 
-bool CoordinatedRobotController::init(
-    hardware_interface::PositionJointInterface* hw, ros::NodeHandle& nh)
+bool RobotController::init(hardware_interface::PositionJointInterface* hw,
+                           ros::NodeHandle& nh)
 {
   const std::string ns = nh.getNamespace();
 
@@ -31,12 +31,6 @@ bool CoordinatedRobotController::init(
   {
     ROS_ERROR_STREAM("Failed to load " << robot_description
                                        << " from parameter server");
-  }
-  if (!nh.getParam("positioner_link", positioner_link_))
-  {
-    ROS_ERROR_STREAM("Failed to load " << nh.getNamespace() + "/positioner_link"
-                                       << " from parameter server");
-    return false;
   }
   if (!nh.getParam("base_link", base_link_))
   {
@@ -64,14 +58,6 @@ bool CoordinatedRobotController::init(
     ROS_FATAL("Failed to parse KDL tree from  urdf model");
     return false;
   }
-
-  if (!kdl_tree.getChain(positioner_link_, eef_link_, coordinated_chain_))
-  {
-    ROS_FATAL_STREAM("Failed to build kinematic chain from '"
-                     << positioner_link_ << "' to '" << eef_link_
-                     << "'. Make sure these links exist in the URDF.");
-    return false;
-  }
   if (!kdl_tree.getChain(base_link_, eef_link_, robot_chain_))
   {
     ROS_FATAL_STREAM("Failed to build kinematic chain from '"
@@ -80,13 +66,9 @@ bool CoordinatedRobotController::init(
     return false;
   }
 
-  coordinated_jacobian_solver_ =
-      std::make_unique<KDL::ChainJntToJacSolver>(coordinated_chain_);
   robot_jacobian_solver_ =
       std::make_unique<KDL::ChainJntToJacSolver>(robot_chain_);
 
-  coordinated_fk_solver_ =
-      std::make_unique<KDL::ChainFkSolverPos_recursive>(coordinated_chain_);
   robot_fk_solver_ =
       std::make_unique<KDL::ChainFkSolverPos_recursive>(robot_chain_);
 
@@ -98,10 +80,10 @@ bool CoordinatedRobotController::init(
                                        << " from parameter server");
     return false;
   }
-  n_robot_joints_ = joint_names.size();
+  n_joints_ = joint_names.size();
 
-  joint_handles_.resize(n_robot_joints_);
-  for (size_t i = 0; i < n_robot_joints_; ++i)
+  joint_handles_.resize(n_joints_);
+  for (size_t i = 0; i < n_joints_; ++i)
   {
     try
     {
@@ -115,27 +97,7 @@ bool CoordinatedRobotController::init(
     }
   }
 
-  // Setup positioner joint state
-  std::string positioner_topic;
-  if (!nh.getParam("positioner_topic", positioner_topic))
-  {
-    ROS_ERROR_STREAM("Failed to load " << ns << "/positioner_topic"
-                                       << " from parameter server");
-    return false;
-  }
-
-  sensor_msgs::JointStateConstPtr pos_joint_state =
-      ros::topic::waitForMessage<sensor_msgs::JointState>(positioner_topic,
-                                                          ros::Duration(10));
-  if (pos_joint_state == NULL)
-  {
-    ROS_ERROR_STREAM("Timed out waiting for topic:" << positioner_topic);
-    return false;
-  }
-  n_pos_joints_ = pos_joint_state->name.size();
-  posJointStateCallback(pos_joint_state);
-
-  robot_state_.resize(n_robot_joints_);
+  robot_state_.resize(n_joints_);
 
   // Find setpoint topic
   std::string setpoint_topic;
@@ -156,87 +118,66 @@ bool CoordinatedRobotController::init(
   }
   aiming_vec_ = Eigen::Vector3d(aiming_vec.data());
 
-  // Setup ROS components
-  sub_positioner_joint_states_ =
-      nh.subscribe(positioner_topic, 1,
-                   &CoordinatedRobotController::posJointStateCallback, this);
-
-  sub_setpoint_ = nh.subscribe(
-      setpoint_topic, 1, &CoordinatedRobotController::setpointCallback, this);
+  sub_setpoint_ =
+      nh.subscribe(setpoint_topic, 1, &RobotController::setpointCallback, this);
 
   // Dynamic reconfigure
   dyn_reconf_server_ = std::make_shared<ReconfigureServer>(nh);
-  dyn_reconf_server_->setCallback(
-      std::bind(&CoordinatedRobotController::reconfCallback, this,
-                std::placeholders::_1, std::placeholders::_2));
+  dyn_reconf_server_->setCallback(std::bind(&RobotController::reconfCallback,
+                                            this, std::placeholders::_1,
+                                            std::placeholders::_2));
 
   return true;
 }
 
-void CoordinatedRobotController::update(const ros::Time&,
-                                        const ros::Duration& period)
+void RobotController::update(const ros::Time&, const ros::Duration& period)
 {
   synchronizeJointStates();  // update state
 
   const DynamicParams* params = dynamic_params_.readFromRT();
   const Setpoint* setpoint = setpoint_.readFromRT();
 
-  KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-  combined_positions.data << positioner_state_.readFromRT()->q.data,
-      robot_state_.q.data;
+  KDL::Jacobian jac(n_joints_);
+  robot_jacobian_solver_->JntToJac(robot_state_.q, jac);
 
-  KDL::Jacobian rob_jac(n_robot_joints_);
-  KDL::Jacobian coord_jac(n_robot_joints_ + n_pos_joints_);
-  robot_jacobian_solver_->JntToJac(robot_state_.q, rob_jac);
-  coordinated_jacobian_solver_->JntToJac(combined_positions, coord_jac);
-
-  KDL::Frame pose_pf, pose_bf;
-  robot_fk_solver_->JntToCart(robot_state_.q, pose_bf);
-  coordinated_fk_solver_->JntToCart(combined_positions, pose_pf);
+  KDL::Frame pose;
+  robot_fk_solver_->JntToCart(robot_state_.q, pose);
 
   // orientation error
-  Eigen::Vector3d aiming_bf =
-      Eigen::Matrix3d(pose_bf.M.Inverse().data) * aiming_vec_;
+  Eigen::Vector3d aiming_b =
+      Eigen::Matrix3d(pose.M.Inverse().data) * aiming_vec_;
 
-  Eigen::Vector3d rot_axis = aiming_bf.cross(setpoint->aiming).normalized();
-  double rot_angle = acos(aiming_bf.dot(setpoint->aiming) /
-                          (aiming_bf.norm() * setpoint->aiming.norm()));
+  Eigen::Vector3d rot_axis = aiming_b.cross(setpoint->aiming).normalized();
+  double rot_angle = acos(aiming_b.dot(setpoint->aiming) /
+                          (aiming_b.norm() * setpoint->aiming.norm()));
 
   Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
   orient_error *= rot_angle;
 
   // position error
-  Eigen::Vector3d pos_error =
-      setpoint->position - Eigen::Vector3d(pose_pf.p.data);
+  Eigen::Vector3d pos_error = setpoint->position - Eigen::Vector3d(pose.p.data);
 
   // control
   Eigen::Matrix<double, 5, 1> cart_cmd;
   cart_cmd << params->k_position * pos_error + setpoint->velocity,
       params->k_aiming * orient_error;
 
-  Eigen::MatrixXd Jr =
-      coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
-  Jr.block(3, 0, 2, n_robot_joints_) =
-      rob_jac.data.block(3, 0, 2, n_robot_joints_);
-
-  Eigen::MatrixXd Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
-  Jp.block(3, 0, 2, n_pos_joints_) = Eigen::Vector2d::Zero();
+  Eigen::MatrixXd Jr = jac.data.block(0, 0, 5, n_joints_);
 
   Eigen::MatrixXd Jr_pinv =
       Jr.transpose() *
       (Jr * Jr.transpose() + params->alpha * params->alpha * identity5x5)
           .inverse();
-  Eigen::VectorXd joint_cmd =
-      Jr_pinv * (cart_cmd - Jp * positioner_state_.readFromRT()->qdot.data);
+  Eigen::VectorXd joint_cmd = Jr_pinv * cart_cmd;
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
-  for (unsigned int i = 0; i < n_robot_joints_; ++i)
+  for (unsigned int i = 0; i < n_joints_; ++i)
   {
     joint_handles_[i].setCommand(new_position[i]);
   }
 }
 
-void CoordinatedRobotController::starting(const ros::Time&)
+void RobotController::starting(const ros::Time&)
 {
   synchronizeJointStates();
 
@@ -247,45 +188,24 @@ void CoordinatedRobotController::starting(const ros::Time&)
   init_setpoint.velocity = Eigen::Vector3d::Zero();
   init_setpoint.aiming =
       Eigen::Matrix3d(init_pose_bf.M.Inverse().data) * aiming_vec_;
-
-  KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-  combined_positions.data << positioner_state_.readFromRT()->q.data,
-      robot_state_.q.data;
-
-  KDL::Frame init_pose_pf;
-  coordinated_fk_solver_->JntToCart(combined_positions, init_pose_pf);
-  init_setpoint.position = Eigen::Vector3d(init_pose_pf.p.data);
+  init_setpoint.position = Eigen::Vector3d(init_pose_bf.p.data);
 
   setpoint_.initRT(init_setpoint);
 }
 
-void CoordinatedRobotController::stopping(const ros::Time&) {}
+void RobotController::stopping(const ros::Time&) {}
 
-void CoordinatedRobotController::synchronizeJointStates()
+void RobotController::synchronizeJointStates()
 {
   // Synchronize the internal state with the hardware
-  for (unsigned int i = 0; i < n_robot_joints_; ++i)
+  for (unsigned int i = 0; i < n_joints_; ++i)
   {
     robot_state_.q(i) = joint_handles_[i].getPosition();
     robot_state_.qdot(i) = joint_handles_[i].getVelocity();
   }
 }
 
-void CoordinatedRobotController::posJointStateCallback(
-    const sensor_msgs::JointStateConstPtr& msg)
-{
-  KDL::JntArrayVel pos_state(n_pos_joints_);
-  KDL::JntArray position(n_pos_joints_);
-  KDL::JntArray velocity(n_pos_joints_);
-  for (size_t i = 0; i < n_pos_joints_; ++i)
-  {
-    pos_state.q(i) = msg->position[i];
-    pos_state.qdot(i) = msg->velocity[i];
-  }
-  positioner_state_.writeFromNonRT(pos_state);
-}
-
-void CoordinatedRobotController::setpointCallback(
+void RobotController::setpointCallback(
     const coordinated_control_msgs::SetpointConstPtr& msg)
 {
   Setpoint new_setpoint;
@@ -305,8 +225,8 @@ void CoordinatedRobotController::setpointCallback(
   setpoint_.writeFromNonRT(new_setpoint);
 }
 
-void CoordinatedRobotController::reconfCallback(
-    CoordinatedControllerConfig& config, uint16_t /*level*/)
+void RobotController::reconfCallback(CoordinatedControllerConfig& config,
+                                     uint16_t /*level*/)
 {
   DynamicParams dynamic_params;
   dynamic_params.alpha = config.alpha;
@@ -318,6 +238,5 @@ void CoordinatedRobotController::reconfCallback(
 
 }  // namespace coordinated_motion_controllers
 
-PLUGINLIB_EXPORT_CLASS(
-    coordinated_motion_controllers::CoordinatedRobotController,
-    controller_interface::ControllerBase)
+PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::RobotController,
+                       controller_interface::ControllerBase)
