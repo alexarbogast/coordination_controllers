@@ -1,4 +1,5 @@
 #include <coordinated_motion_controllers/coordinated_robot_controller.h>
+#include <coordinated_motion_controllers/utility.h>
 
 #include <urdf/model.h>
 #include <kdl/jntarrayvel.hpp>
@@ -198,9 +199,8 @@ void CoordinatedRobotController::update(const ros::Time&,
   Eigen::Vector3d aiming_bf =
       Eigen::Matrix3d(pose_bf.M.Inverse().data) * aiming_vec_;
 
-  Eigen::Vector3d rot_axis = aiming_bf.cross(setpoint->aiming).normalized();
-  double rot_angle = acos(aiming_bf.dot(setpoint->aiming) /
-                          (aiming_bf.norm() * setpoint->aiming.norm()));
+  Eigen::Vector3d rot_axis = axisBetween(aiming_bf, setpoint->aiming);
+  double rot_angle = angleBetween(aiming_bf, setpoint->aiming);
 
   Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
   orient_error *= rot_angle;

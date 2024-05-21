@@ -1,4 +1,5 @@
 #include <coordinated_motion_controllers/robot_controller.h>
+#include <coordinated_motion_controllers/utility.h>
 
 #include <urdf/model.h>
 #include <kdl/jntarrayvel.hpp>
@@ -144,12 +145,11 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
   robot_fk_solver_->JntToCart(robot_state_.q, pose);
 
   // orientation error
-  Eigen::Vector3d aiming_b =
+  Eigen::Vector3d aiming_bf =
       Eigen::Matrix3d(pose.M.Inverse().data) * aiming_vec_;
 
-  Eigen::Vector3d rot_axis = aiming_b.cross(setpoint->aiming).normalized();
-  double rot_angle = acos(aiming_b.dot(setpoint->aiming) /
-                          (aiming_b.norm() * setpoint->aiming.norm()));
+  Eigen::Vector3d rot_axis = axisBetween(aiming_bf, setpoint->aiming);
+  double rot_angle = angleBetween(aiming_bf, setpoint->aiming);
 
   Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
   orient_error *= rot_angle;
