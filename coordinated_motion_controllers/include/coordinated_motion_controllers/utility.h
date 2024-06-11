@@ -19,14 +19,16 @@ double angleBetween(const Eigen::Vector3d& v1, const Eigen::Vector3d& v2);
 /**
  * @brief Find the unit magnitude axis of rotation to rotate vector v1 to v2
  *
- * Returns zero if the vectors are collinear. No checks are performed on the
- * magnitude of the input vectors.
+ * Returns a zero vector if the norm of the cross product is less than tol (i.e.
+ * vectors are close to collinear). No checks are performed on the magnitude of
+ * the input vectors.
  *
  * @param v1 the first vector
- * @param v1 the second vector
+ * @param v2 the second vector
+ * @param tol the upper bound of the divisor for axis normalization
  * @returns the unit vector axis of rotation
  */
 Eigen::Vector3d axisBetween(const Eigen::Vector3d& v1,
-                            const Eigen::Vector3d& v2);
+                            const Eigen::Vector3d& v2, double tol = 1e-5);
 
 }  // namespace coordinated_motion_controllers

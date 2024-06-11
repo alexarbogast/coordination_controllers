@@ -5,15 +5,16 @@ namespace coordinated_motion_controllers
 
 double angleBetween(const Eigen::Vector3d& v1, const Eigen::Vector3d& v2)
 {
-  return acos(v1.dot(v2) / (v1.norm() * v2.norm()));
+  return acos(
+      std::min(1.0, std::max(-1.0, v1.dot(v2) / (v1.norm() * v2.norm()))));
 }
 
 Eigen::Vector3d axisBetween(const Eigen::Vector3d& v1,
-                            const Eigen::Vector3d& v2)
+                            const Eigen::Vector3d& v2, double tol)
 {
   Eigen::Vector3d axis = v1.cross(v2);
   double norm = axis.norm();
-  if (norm > 1e-6)
+  if (norm > tol)
   {
     return axis / norm;
   }
