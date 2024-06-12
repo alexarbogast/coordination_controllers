@@ -70,6 +70,9 @@ bool RobotController::init(hardware_interface::PositionJointInterface* hw,
   robot_jacobian_solver_ =
       std::make_unique<KDL::ChainJntToJacSolver>(robot_chain_);
 
+  robot_jacobian_dot_solver_ =
+      std::make_unique<KDL::ChainJntToJacDotSolver>(robot_chain_);
+
   robot_fk_solver_ =
       std::make_unique<KDL::ChainFkSolverPos_recursive>(robot_chain_);
 
@@ -144,7 +147,7 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
   KDL::Frame pose;
   robot_fk_solver_->JntToCart(robot_state_.q, pose);
 
-  // orientation error
+  /* orientation error */
   Eigen::Vector3d aiming_bf =
       Eigen::Matrix3d(pose.M.Inverse().data) * aiming_vec_;
 
@@ -154,8 +157,37 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
   Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
   orient_error *= rot_angle;
 
-  // position error
+  /* position error */
   Eigen::Vector3d pos_error = setpoint->position - Eigen::Vector3d(pose.p.data);
+
+  /* redundancy resolution */
+  Eigen::MatrixXd J_JT = jac.data * jac.data.transpose();
+  double manip = sqrt(J_JT.determinant());
+
+  // manipulability gradient
+  Eigen::VectorXd manip_grad(n_joints_);
+  if (manip > 1e-6)
+  {
+    Eigen::MatrixXd J_JT_inv = J_JT.inverse();
+    KDL::JntArrayVel current_state(robot_state_);
+    KDL::Jacobian hessian_block(n_joints_);
+
+    for (std::size_t i = 0; i < n_joints_; ++i)
+    {
+      current_state.qdot.data.setZero();
+      current_state.qdot(i) = 1.0;
+
+      robot_jacobian_dot_solver_->JntToJacDot(current_state, hessian_block);
+      manip_grad[i] = (jac.data * hessian_block.data.transpose())
+                          .cwiseProduct(J_JT_inv)
+                          .sum();
+    }
+    manip_grad *= manip * params->k_manip;
+  }
+  else
+  {
+    manip_grad.setZero();
+  }
 
   // control
   Eigen::Matrix<double, 5, 1> cart_cmd;
@@ -163,12 +195,14 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
       params->k_aiming * orient_error;
 
   Eigen::MatrixXd Jr = jac.data.block(0, 0, 5, n_joints_);
-
   Eigen::MatrixXd Jr_pinv =
       Jr.transpose() *
       (Jr * Jr.transpose() + params->alpha * params->alpha * identity5x5)
           .inverse();
-  Eigen::VectorXd joint_cmd = Jr_pinv * cart_cmd;
+
+  Eigen::VectorXd joint_cmd =
+      Jr_pinv * cart_cmd +
+      ((Eigen::MatrixXd::Identity(6, 6) - Jr_pinv * Jr) * manip_grad);
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_joints_; ++i)
@@ -232,6 +266,7 @@ void RobotController::reconfCallback(CoordinatedControllerConfig& config,
   dynamic_params.alpha = config.alpha;
   dynamic_params.k_position = config.k_position;
   dynamic_params.k_aiming = config.k_aiming;
+  dynamic_params.k_manip = config.k_manip;
 
   dynamic_params_.writeFromNonRT(dynamic_params);
 }
