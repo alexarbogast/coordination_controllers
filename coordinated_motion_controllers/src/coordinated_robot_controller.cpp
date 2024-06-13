@@ -16,6 +16,8 @@ namespace coordinated_motion_controllers
 static const Eigen::Matrix<double, 5, 5> identity5x5 =
     Eigen::Matrix<double, 5, 5>::Identity();
 
+static double MANIP_THRESHOLD = 1e-6;
+
 bool CoordinatedRobotController::init(
     hardware_interface::PositionJointInterface* hw, ros::NodeHandle& nh)
 {
@@ -85,6 +87,8 @@ bool CoordinatedRobotController::init(
       std::make_unique<KDL::ChainJntToJacSolver>(coordinated_chain_);
   robot_jacobian_solver_ =
       std::make_unique<KDL::ChainJntToJacSolver>(robot_chain_);
+  robot_jacobian_dot_solver_ =
+      std::make_unique<KDL::ChainJntToJacDotSolver>(robot_chain_);
 
   coordinated_fk_solver_ =
       std::make_unique<KDL::ChainFkSolverPos_recursive>(coordinated_chain_);
@@ -195,7 +199,7 @@ void CoordinatedRobotController::update(const ros::Time&,
   robot_fk_solver_->JntToCart(robot_state_.q, pose_bf);
   coordinated_fk_solver_->JntToCart(combined_positions, pose_pf);
 
-  // orientation error
+  /* orientation error */
   Eigen::Vector3d aiming_bf =
       Eigen::Matrix3d(pose_bf.M.Inverse().data) * aiming_vec_;
 
@@ -205,11 +209,39 @@ void CoordinatedRobotController::update(const ros::Time&,
   Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
   orient_error *= rot_angle;
 
-  // position error
+  /* position error */
   Eigen::Vector3d pos_error =
       setpoint->position - Eigen::Vector3d(pose_pf.p.data);
 
-  // control
+  /* redundancy resolution */
+  Eigen::MatrixXd J_JT = rob_jac.data * rob_jac.data.transpose();
+  double manip = sqrt(J_JT.determinant());
+
+  Eigen::VectorXd manip_grad(n_robot_joints_);
+  if (manip > MANIP_THRESHOLD)
+  {
+    Eigen::MatrixXd J_JT_inv = J_JT.inverse();
+    KDL::JntArrayVel current_state(robot_state_);
+    KDL::Jacobian hessian_block(n_robot_joints_);
+
+    for (std::size_t i = 0; i < n_robot_joints_; ++i)
+    {
+      current_state.qdot.data.setZero();
+      current_state.qdot(i) = 1.0;
+
+      robot_jacobian_dot_solver_->JntToJacDot(current_state, hessian_block);
+      manip_grad[i] = (rob_jac.data * hessian_block.data.transpose())
+                          .cwiseProduct(J_JT_inv)
+                          .sum();
+    }
+    manip_grad *= manip * params->k_manip;
+  }
+  else
+  {
+    manip_grad.setZero();
+  }
+
+  /* control */
   Eigen::Matrix<double, 5, 1> cart_cmd;
   cart_cmd << params->k_position * pos_error + setpoint->velocity,
       params->k_aiming * orient_error;
@@ -219,15 +251,19 @@ void CoordinatedRobotController::update(const ros::Time&,
   Jr.block(3, 0, 2, n_robot_joints_) =
       rob_jac.data.block(3, 0, 2, n_robot_joints_);
 
-  Eigen::MatrixXd Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
-  Jp.block(3, 0, 2, n_pos_joints_) = Eigen::Vector2d::Zero();
-
   Eigen::MatrixXd Jr_pinv =
       Jr.transpose() *
       (Jr * Jr.transpose() + params->alpha * params->alpha * identity5x5)
           .inverse();
+
+  Eigen::MatrixXd Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
+  Jp.block(3, 0, 2, n_pos_joints_) = Eigen::Vector2d::Zero();
+
+  Eigen::MatrixXd I =
+      Eigen::MatrixXd::Identity(n_robot_joints_, n_robot_joints_);
   Eigen::VectorXd joint_cmd =
-      Jr_pinv * (cart_cmd - Jp * positioner_state_.readFromRT()->qdot.data);
+      Jr_pinv * (cart_cmd - Jp * positioner_state_.readFromRT()->qdot.data) +
+      ((I - Jr_pinv * Jr) * manip_grad);
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
@@ -275,8 +311,6 @@ void CoordinatedRobotController::posJointStateCallback(
     const sensor_msgs::JointStateConstPtr& msg)
 {
   KDL::JntArrayVel pos_state(n_pos_joints_);
-  KDL::JntArray position(n_pos_joints_);
-  KDL::JntArray velocity(n_pos_joints_);
   for (size_t i = 0; i < n_pos_joints_; ++i)
   {
     pos_state.q(i) = msg->position[i];
@@ -312,6 +346,7 @@ void CoordinatedRobotController::reconfCallback(
   dynamic_params.alpha = config.alpha;
   dynamic_params.k_position = config.k_position;
   dynamic_params.k_aiming = config.k_aiming;
+  dynamic_params.k_manip = config.k_manip;
 
   dynamic_params_.writeFromNonRT(dynamic_params);
 }

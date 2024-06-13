@@ -16,6 +16,8 @@ namespace coordinated_motion_controllers
 static const Eigen::Matrix<double, 5, 5> identity5x5 =
     Eigen::Matrix<double, 5, 5>::Identity();
 
+static double MANIP_THRESHOLD = 1e-6;
+
 bool RobotController::init(hardware_interface::PositionJointInterface* hw,
                            ros::NodeHandle& nh)
 {
@@ -164,9 +166,8 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
   Eigen::MatrixXd J_JT = jac.data * jac.data.transpose();
   double manip = sqrt(J_JT.determinant());
 
-  // manipulability gradient
   Eigen::VectorXd manip_grad(n_joints_);
-  if (manip > 1e-6)
+  if (manip > MANIP_THRESHOLD)
   {
     Eigen::MatrixXd J_JT_inv = J_JT.inverse();
     KDL::JntArrayVel current_state(robot_state_);
@@ -189,7 +190,7 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
     manip_grad.setZero();
   }
 
-  // control
+  /* control */
   Eigen::Matrix<double, 5, 1> cart_cmd;
   cart_cmd << params->k_position * pos_error + setpoint->velocity,
       params->k_aiming * orient_error;
@@ -200,9 +201,9 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
       (Jr * Jr.transpose() + params->alpha * params->alpha * identity5x5)
           .inverse();
 
+  Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n_joints_, n_joints_);
   Eigen::VectorXd joint_cmd =
-      Jr_pinv * cart_cmd +
-      ((Eigen::MatrixXd::Identity(6, 6) - Jr_pinv * Jr) * manip_grad);
+      Jr_pinv * cart_cmd + ((I - Jr_pinv * Jr) * manip_grad);
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_joints_; ++i)

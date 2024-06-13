@@ -3,6 +3,7 @@
 #include <coordinated_motion_controllers/setpoint.h>
 
 #include <kdl/chainjnttojacsolver.hpp>
+#include <kdl/chainjnttojacdotsolver.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/jntarrayvel.hpp>
 
@@ -46,6 +47,7 @@ private:
   KDL::Chain coordinated_chain_, robot_chain_;
   std::unique_ptr<KDL::ChainJntToJacSolver> coordinated_jacobian_solver_;
   std::unique_ptr<KDL::ChainJntToJacSolver> robot_jacobian_solver_;
+  std::unique_ptr<KDL::ChainJntToJacDotSolver> robot_jacobian_dot_solver_;
   std::unique_ptr<KDL::ChainFkSolverPos_recursive> coordinated_fk_solver_;
   std::unique_ptr<KDL::ChainFkSolverPos_recursive> robot_fk_solver_;
 
@@ -67,6 +69,7 @@ private:
     double alpha;       // pinv damping value
     double k_position;  // gain values
     double k_aiming;
+    double k_manip;
   };
   realtime_tools::RealtimeBuffer<DynamicParams> dynamic_params_;
 
