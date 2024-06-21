@@ -21,18 +21,18 @@
     <node name="sim_hw_interface" pkg="ros_control_boilerplate" type="sim_hw_main"
           output="screen" launch-prefix="$(arg launch_prefix)"/>
     <node name="default_controllers_spawner" pkg="controller_manager" type="controller_manager"
-          respawn="false" output="screen" args="spawn joint_state_controller task_space_controller"/>
+          respawn="false" output="screen" args="spawn joint_state_controller joint_trajectory_controller"/>
     <node name="coordinated_controller_spawner" pkg="controller_manager" type="controller_manager"
-          respawn="false" output="screen" args="load coordinated_motion_controller"/>
+          respawn="false" output="screen" args="load task_space_controller coordinated_motion_controller"/>
   </group>
 
   <group ns="rob2">
     <node name="sim_hw_interface" pkg="ros_control_boilerplate" type="sim_hw_main"
           output="screen" launch-prefix="$(arg launch_prefix)"/>
     <node name="default_controllers_spawner" pkg="controller_manager" type="controller_manager"
-          respawn="false" output="screen" args="spawn joint_state_controller task_space_controller"/>
+          respawn="false" output="screen" args="spawn joint_state_controller joint_trajectory_controller"/>
     <node name="coordinated_controller_spawner" pkg="controller_manager" type="controller_manager"
-          respawn="false" output="screen" args="load coordinated_motion_controller"/>
+          respawn="false" output="screen" args="load task_space_controller coordinated_motion_controller"/>
   </group>
 
   <group ns="positioner">

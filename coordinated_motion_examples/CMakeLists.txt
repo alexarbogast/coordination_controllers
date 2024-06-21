@@ -18,6 +18,11 @@ catkin_package(CATKIN_DEPENDS
 
 include_directories(${catkin_INCLUDE_DIRS})
 
+catkin_install_python(PROGRAMS
+  scripts/coordinated_motion_demo.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 install(DIRECTORY
   config
   launch
