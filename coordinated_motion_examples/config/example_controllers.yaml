@@ -14,7 +14,7 @@ rob1:
     k_aiming: 10.0
     k_manip: 100.0
 
-    aiming_vec: [0.0, 1.0, 0.0]
+    aiming_vec: [0.0, 0.0, -1.0]
 
     base_link: rob1_base_link
     eef_link: rob1_tool0
@@ -36,7 +36,7 @@ rob1:
     k_aiming: 10.0
     k_manip: 100.0
 
-    aiming_vec: [0.0, 1.0, 0.0]
+    aiming_vec: [0.0, 0.0, -1.0]
 
     positioner_link: positioner
     base_link: rob1_base_link

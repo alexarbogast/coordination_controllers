@@ -1,15 +1,78 @@
+from typing import List
+from numpy.typing import NDArray
+import numpy as np
+import quaternion
+
 import rospy
 import actionlib
-
-import numpy as np
-import math
 
 from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
 from trajectory_msgs.msg import JointTrajectoryPoint
 from controller_manager_msgs.srv import SwitchController, SwitchControllerRequest
 
+from visualization_msgs.msg import Marker, MarkerArray
+from geometry_msgs.msg import Point, Vector3
+from std_msgs.msg import ColorRGBA
+from geometry_msgs.msg import Quaternion as QuaternionMsg
+
 from coordinated_control_msgs.msg import Setpoint
-from geometry_msgs.msg import Vector3
+
+
+class MarkerVisualization(object):
+    def __init__(self, radius: float, color: ColorRGBA):
+        self.r = radius
+        self.color = color
+        self.vis_pub = rospy.Publisher(
+            "visualization_marker_array", MarkerArray, queue_size=1, latch=True
+        )
+
+    def visualize_path(self, path: List[NDArray], frame="world"):
+        marker_id = 0
+        marker_array = MarkerArray()
+
+        for i in range(len(path) - 1):
+            p1, p2 = path[i], path[i + 1]
+            marker = self.make_cylinder(p1, p2)
+            marker.id = marker_id
+            marker.header.stamp = rospy.Time.now()
+            marker.header.frame_id = frame
+            marker.frame_locked = True
+            marker_array.markers.append(marker)
+            marker_id += 1
+
+        self.vis_pub.publish(marker_array)
+
+    def make_cylinder(self, p1: NDArray, p2: NDArray):
+        v = p2 - p1
+        h = np.linalg.norm(v)
+        center = np.average([p1, p2], axis=0)
+
+        u = v / h
+        z_axis = np.array([0, 0, 1])
+        axis = np.cross(z_axis, u)
+        norm = np.linalg.norm(axis)
+        if norm > 0:
+            axis /= norm
+        angle = np.arccos(np.dot(z_axis, u))
+        q = quaternion.from_rotation_vector(angle * axis)
+
+        marker = Marker()
+        marker.header.stamp = rospy.Time.now()
+        marker.type = marker.CYLINDER
+        marker.action = marker.ADD
+        marker.pose.orientation = QuaternionMsg(q.x, q.y, q.z, q.w)
+        marker.pose.position = Point(center[0], center[1], center[2])
+        marker.scale = Vector3(self.r, self.r, h)
+        marker.color = self.color
+        return marker
+
+    def delete_all(self):
+        marker_array = MarkerArray()
+        marker = Marker()
+        marker.header.stamp = rospy.Time.now()
+        marker.action = marker.DELETEALL
+        marker_array.markers.append(marker)
+        self.vis_pub.publish(marker_array)
 
 
 class ControllerManagerClient(object):
@@ -50,6 +113,10 @@ class CoordinatedMotionDemo(object):
         )
         self.joint_traj_client.wait_for_server()
         self.controller_client = ControllerManagerClient("rob1")
+        self.marker_viz = MarkerVisualization(
+            0.007,
+            ColorRGBA(244 / 255, 96 / 255, 54 / 255, 0.8),
+        )
 
     def run(self):
         self.controller_client.switch_controller(
@@ -60,83 +127,93 @@ class CoordinatedMotionDemo(object):
         self.controller_client.switch_controller(
             ["task_space_controller"], ["joint_trajectory_controller"]
         )
-        self.task_space_demo()
-
+        self.task_space_hypotrochoid()
         self.controller_client.switch_controller(
             ["coordinated_motion_controller"], ["task_space_controller"]
         )
-        self.coordinated_demo()
 
+        self.coordinated_hypotrochoid()
         self.controller_client.switch_controller(
             ["joint_trajectory_controller"], ["coordinated_motion_controller"]
         )
         self.move_home()
 
-    def task_space_demo(self):
-        path = [
-            np.array([0.7, 0.4, 0.2]),
-            np.array([0.3, 0.4, 0.2]),
-            np.array([0.3, -0.4, 0.2]),
-            np.array([0.7, -0.4, 0.2]),
-            np.array([0.7, 0.4, 0.2]),
-        ]
+    def task_space_hypotrochoid(self):
+        # https://www.desmos.com/calculator/r3ltep03hx
+        scaling = 1 / 25
+
+        tt = np.linspace(0, 2 * np.pi * 5, 1000)
+        f = lambda t, z: scaling * np.array(
+            [
+                2 * np.cos(t) + 4.5 * np.cos(2 / 3 * t),
+                2 * np.sin(t) - 4.5 * np.sin(2 / 3 * t),
+                z / scaling,
+            ]
+        )
+        f_dot = lambda t: scaling * np.array(
+            [
+                -2 * np.sin(t) - 3 * np.sin(2 / 3 * t),
+                2 * np.cos(t) - 3 * np.cos(2 / 3 * t),
+                0,
+            ]
+        )
+
+        self.marker_viz.visualize_path(
+            [f(t, 0.1) + np.array([0.5, 0.0, 0.0]) for t in tt],
+            "rob1_base_link",
+        )
 
         setpoint = Setpoint()
         setpoint.pose.aiming = Vector3(0.0, 0.0, 1.0)
 
-        vel = 0.2
-        freq = 1000
-        rate = rospy.Rate(freq)
-        for i in range(len(path) - 1):
-            start = path[i]
-            end = path[i + 1]
+        rate = rospy.Rate(100)
+        for t in tt:
+            ft = f(t, 0.1)
+            f_dott = f_dot(t)
 
-            vec = end - start
-            path_len = np.linalg.norm(vec)
-            dir = vec / path_len
-            vel_vec = dir * vel
+            setpoint.pose.position = Vector3(ft[0] + 0.5, ft[1], ft[2])
+            setpoint.velocity = Vector3(f_dott[0], f_dott[1], f_dott[2])
+            self.task_space_setpoint_pub.publish(setpoint)
+            rate.sleep()
 
-            final_t = path_len / vel
-            tt = np.linspace(0, final_t, math.ceil(final_t * freq))
-            for t in tt:
-                pos = start + (dir * vel * t)
-                setpoint.pose.position = Vector3(pos[0], pos[1], pos[2])
-                setpoint.velocity = Vector3(vel_vec[0], vel_vec[1], vel_vec[2])
-                self.task_space_setpoint_pub.publish(setpoint)
-                rate.sleep()
+        self.marker_viz.delete_all()
 
-    def coordinated_demo(self):
-        path = [
-            np.array([0.3, 0.3, 0.0]),
-            np.array([-0.3, 0.3, 0.0]),
-            np.array([-0.3, -0.3, 0.0]),
-            np.array([0.3, -0.3, 0.0]),
-            np.array([0.3, 0.3, 0.0]),
-        ]
+    def coordinated_hypotrochoid(self):
+        scaling = 1 / 25
+
+        tt = np.linspace(0, 2 * np.pi * 5, 1000)
+        f = lambda t, z: scaling * np.array(
+            [
+                2 * np.cos(t) + 4.5 * np.cos(2 / 3 * t),
+                2 * np.sin(t) - 4.5 * np.sin(2 / 3 * t),
+                z / scaling,
+            ]
+        )
+        f_dot = lambda t: scaling * np.array(
+            [
+                -2 * np.sin(t) - 3 * np.sin(2 / 3 * t),
+                2 * np.cos(t) - 3 * np.cos(2 / 3 * t),
+                0,
+            ]
+        )
+
+        self.marker_viz.visualize_path(
+            [f(t, 0.01) for t in tt],
+            "positioner",
+        )
 
         setpoint = Setpoint()
         setpoint.pose.aiming = Vector3(0.0, 0.0, 1.0)
 
-        vel = 0.2
-        freq = 1000
-        rate = rospy.Rate(freq)
-        for i in range(len(path) - 1):
-            start = path[i]
-            end = path[i + 1]
+        rate = rospy.Rate(100)
+        for t in tt:
+            ft = f(t, 0.01)
+            f_dott = f_dot(t)
 
-            vec = end - start
-            path_len = np.linalg.norm(vec)
-            dir = vec / path_len
-            vel_vec = dir * vel
-
-            final_t = path_len / vel
-            tt = np.linspace(0, final_t, math.ceil(final_t * freq))
-            for t in tt:
-                pos = start + (dir * vel * t)
-                setpoint.pose.position = Vector3(pos[0], pos[1], pos[2])
-                setpoint.velocity = Vector3(vel_vec[0], vel_vec[1], vel_vec[2])
-                self.coordinated_setpoint_pub.publish(setpoint)
-                rate.sleep()
+            setpoint.pose.position = Vector3(ft[0], ft[1], ft[2])
+            setpoint.velocity = Vector3(f_dott[0], f_dott[1], f_dott[2])
+            self.coordinated_setpoint_pub.publish(setpoint)
+            rate.sleep()
 
     def move_home(self):
         goal = FollowJointTrajectoryGoal()
@@ -151,12 +228,12 @@ class CoordinatedMotionDemo(object):
 
         home = JointTrajectoryPoint()
         home.positions = [
-            -0.33520197589459866,
-            -1.166151476125835,
-            2.3323065987852196,
-            -1.1661642688951233,
-            1.7660348728271527,
-            2.5210987150084945e-06,
+            -0.3682676987777704,
+            -0.845456854726745,
+            1.8581698861744447,
+            0.5580733655537403,
+            1.5707974618414442,
+            0.18855996186926843,
         ]
         home.time_from_start = rospy.Duration(1)
 
@@ -169,5 +246,8 @@ class CoordinatedMotionDemo(object):
 if __name__ == "__main__":
     rospy.init_node("coordinated_motion_demo")
 
-    demo = CoordinatedMotionDemo()
-    demo.run()
+    try:
+        demo = CoordinatedMotionDemo()
+        demo.run()
+    except rospy.ROSInterruptException:
+        pass
