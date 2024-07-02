@@ -30,10 +30,11 @@ bool CoordinatedRobotController::init(
     ROS_ERROR("robot_description not found in enclosing namespaces");
     return false;
   }
-  if (!nh.getParam(robot_description, robot_description))
+  if (!nh.getParam("/robot_description", robot_description))
   {
     ROS_ERROR_STREAM("Failed to load " << robot_description
                                        << " from parameter server");
+    return false;
   }
   if (!nh.getParam("positioner_link", positioner_link_))
   {
