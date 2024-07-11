@@ -16,7 +16,9 @@ namespace coordinated_motion_controllers
 static const Eigen::Matrix<double, 5, 5> identity5x5 =
     Eigen::Matrix<double, 5, 5>::Identity();
 
-static double MANIP_THRESHOLD = 1e-6;
+static const double MANIP_THRESHOLD = 1e-6;
+
+static const std::string POS_SETPOINT_NS = "pos_setpoint";
 
 bool CoordinatedRobotController::init(
     hardware_interface::PositionJointInterface* hw, ros::NodeHandle& nh)
@@ -25,11 +27,6 @@ bool CoordinatedRobotController::init(
 
   // Load robot description and link names
   std::string robot_description;
-  if (!ros::param::search("robot_description", robot_description))
-  {
-    ROS_ERROR("robot_description not found in enclosing namespaces");
-    return false;
-  }
   if (!nh.getParam("/robot_description", robot_description))
   {
     ROS_ERROR_STREAM("Failed to load " << robot_description
@@ -170,6 +167,11 @@ bool CoordinatedRobotController::init(
   sub_setpoint_ = nh.subscribe(
       setpoint_topic, 1, &CoordinatedRobotController::setpointCallback, this);
 
+  positioner_setpoint_pub_ = std::make_unique<
+      realtime_tools::RealtimePublisher<sensor_msgs::JointState>>(
+      nh, POS_SETPOINT_NS, 1);
+  positioner_setpoint_pub_->msg_.velocity.resize(n_pos_joints_);
+
   // Dynamic reconfigure
   dyn_reconf_server_ = std::make_shared<ReconfigureServer>(nh);
   dyn_reconf_server_->setCallback(
@@ -270,6 +272,17 @@ void CoordinatedRobotController::update(const ros::Time&,
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
   {
     joint_handles_[i].setCommand(new_position[i]);
+  }
+
+  /* desired positioner command */
+  Eigen::VectorXd pos_setpoint =
+      (Jp.transpose() * Jp).inverse() * Jp.transpose() * cart_cmd;
+
+  if (positioner_setpoint_pub_->trylock())
+  {
+    Eigen::VectorXd::Map(&positioner_setpoint_pub_->msg_.velocity[0],
+                         pos_setpoint.size()) = pos_setpoint;
+    positioner_setpoint_pub_->unlockAndPublish();
   }
 }
 

@@ -1,4 +1,5 @@
 from typing import List
+from copy import deepcopy
 from numpy.typing import NDArray
 import numpy as np
 import quaternion
@@ -18,27 +19,56 @@ from geometry_msgs.msg import Quaternion as QuaternionMsg
 from coordinated_control_msgs.msg import Setpoint
 
 
+def hypotrochoid(scaling):
+    # https://www.desmos.com/calculator/r3ltep03hx
+    f = lambda t, z: scaling * np.array(
+        [
+            2 * np.cos(t) + 4.5 * np.cos(2 / 3 * t),
+            2 * np.sin(t) - 4.5 * np.sin(2 / 3 * t),
+            z / scaling,
+        ]
+    )
+    f_dot = lambda t: scaling * np.array(
+        [
+            -2 * np.sin(t) - 3 * np.sin(2 / 3 * t),
+            2 * np.cos(t) - 3 * np.cos(2 / 3 * t),
+            0,
+        ]
+    )
+    return f, f_dot
+
+
 class MarkerVisualization(object):
     def __init__(self, radius: float, color: ColorRGBA):
         self.r = radius
         self.color = color
+        self.marker_id = 0
+
+        self.cylinder_marker = Marker()
+        self.cylinder_marker.ns = "cylinder"
+        self.cylinder_marker.action = Marker.ADD
+        self.cylinder_marker.type = Marker.CYLINDER
+        self.cylinder_marker.frame_locked = True
+
+        self.reset_marker = Marker()
+        self.reset_marker.header.stamp = rospy.Time()
+        self.reset_marker.action = Marker.DELETEALL
+
         self.vis_pub = rospy.Publisher(
             "visualization_marker_array", MarkerArray, queue_size=1, latch=True
         )
 
     def visualize_path(self, path: List[NDArray], frame="world"):
-        marker_id = 0
         marker_array = MarkerArray()
 
         for i in range(len(path) - 1):
             p1, p2 = path[i], path[i + 1]
             marker = self.make_cylinder(p1, p2)
-            marker.id = marker_id
+            marker.id = self.marker_id
             marker.header.stamp = rospy.Time.now()
             marker.header.frame_id = frame
-            marker.frame_locked = True
             marker_array.markers.append(marker)
-            marker_id += 1
+            self.marker_id += 1
 
         self.vis_pub.publish(marker_array)
 
@@ -56,22 +86,16 @@ class MarkerVisualization(object):
         angle = np.arccos(np.dot(z_axis, u))
         q = quaternion.from_rotation_vector(angle * axis)
 
-        marker = Marker()
-        marker.header.stamp = rospy.Time.now()
-        marker.type = marker.CYLINDER
-        marker.action = marker.ADD
+        marker = deepcopy(self.cylinder_marker)
         marker.pose.orientation = QuaternionMsg(q.x, q.y, q.z, q.w)
         marker.pose.position = Point(center[0], center[1], center[2])
         marker.scale = Vector3(self.r, self.r, h)
         marker.color = self.color
         return marker
 
-    def delete_all(self):
-        marker_array = MarkerArray()
-        marker = Marker()
-        marker.header.stamp = rospy.Time.now()
-        marker.action = marker.DELETEALL
-        marker_array.markers.append(marker)
+    def reset(self):
+        self.marker_id = 0
+        marker_array = MarkerArray([self.reset_marker])
         self.vis_pub.publish(marker_array)
 
 
@@ -139,27 +163,15 @@ class CoordinatedMotionDemo(object):
         self.move_home()
 
     def task_space_hypotrochoid(self):
-        # https://www.desmos.com/calculator/r3ltep03hx
         scaling = 1 / 25
-
         tt = np.linspace(0, 2 * np.pi * 5, 1000)
-        f = lambda t, z: scaling * np.array(
-            [
-                2 * np.cos(t) + 4.5 * np.cos(2 / 3 * t),
-                2 * np.sin(t) - 4.5 * np.sin(2 / 3 * t),
-                z / scaling,
-            ]
-        )
-        f_dot = lambda t: scaling * np.array(
-            [
-                -2 * np.sin(t) - 3 * np.sin(2 / 3 * t),
-                2 * np.cos(t) - 3 * np.cos(2 / 3 * t),
-                0,
-            ]
-        )
+        f, f_dot = hypotrochoid(scaling)
 
         self.marker_viz.visualize_path(
-            [f(t, 0.1) + np.array([0.5, 0.0, 0.0]) for t in tt],
+            [
+                f(t, 0.1) + np.array([0.5, 0.0, 0.0])
+                for t in np.linspace(0, 2 * np.pi * 5, 500)
+            ],
             "rob1_base_link",
         )
 
@@ -176,29 +188,15 @@ class CoordinatedMotionDemo(object):
             self.task_space_setpoint_pub.publish(setpoint)
             rate.sleep()
 
-        self.marker_viz.delete_all()
+        self.marker_viz.reset()
 
     def coordinated_hypotrochoid(self):
         scaling = 1 / 25
-
-        tt = np.linspace(0, 2 * np.pi * 5, 1000)
-        f = lambda t, z: scaling * np.array(
-            [
-                2 * np.cos(t) + 4.5 * np.cos(2 / 3 * t),
-                2 * np.sin(t) - 4.5 * np.sin(2 / 3 * t),
-                z / scaling,
-            ]
-        )
-        f_dot = lambda t: scaling * np.array(
-            [
-                -2 * np.sin(t) - 3 * np.sin(2 / 3 * t),
-                2 * np.cos(t) - 3 * np.cos(2 / 3 * t),
-                0,
-            ]
-        )
+        tt = np.linspace(0, 2 * np.pi * 5, 1500)
+        f, f_dot = hypotrochoid(scaling)
 
         self.marker_viz.visualize_path(
-            [f(t, 0.01) for t in tt],
+            [f(t, 0.01) for t in np.linspace(0, 2 * np.pi * 5, 500)],
             "positioner",
         )
 
@@ -215,7 +213,20 @@ class CoordinatedMotionDemo(object):
             self.coordinated_setpoint_pub.publish(setpoint)
             rate.sleep()
 
+        self.marker_viz.reset()
+
     def move_home(self):
+        home = [
+            -0.3682676987777704,
+            -0.845456854726745,
+            1.8581698861744447,
+            0.5580733655537403,
+            1.5707974618414442,
+            0.18855996186926843,
+        ]
+        self.move_joint(home, 1.0)
+
+    def move_joint(self, joint_goal, duration):
         goal = FollowJointTrajectoryGoal()
         goal.trajectory.joint_names = [
             "rob1_joint1",
@@ -225,19 +236,10 @@ class CoordinatedMotionDemo(object):
             "rob1_joint5",
             "rob1_joint6",
         ]
-
-        home = JointTrajectoryPoint()
-        home.positions = [
-            -0.3682676987777704,
-            -0.845456854726745,
-            1.8581698861744447,
-            0.5580733655537403,
-            1.5707974618414442,
-            0.18855996186926843,
-        ]
-        home.time_from_start = rospy.Duration(1)
-
-        goal.trajectory.points = [home]
+        point = JointTrajectoryPoint()
+        point.positions = joint_goal
+        point.time_from_start = rospy.Duration(duration)
+        goal.trajectory.points = [point]
 
         self.joint_traj_client.send_goal(goal)
         self.joint_traj_client.wait_for_result()

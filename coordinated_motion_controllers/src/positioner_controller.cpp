@@ -5,34 +5,29 @@
 namespace coordinated_motion_controllers
 {
 
-const std::string JOINT_STATES_TOPIC = "/joint_states";
+static const std::string POS_SETPOINT_NS = "pos_setpoint";
 
-CoordinatedRobotData::CoordinatedRobotData(
-    const std::string& controller_ns, const std::vector<std::string>& joints)
-  : controller_ns(controller_ns), joints(joints), n_joints(joints.size())
+CoordinatedRobotData::CoordinatedRobotData(const std::string& controller_ns,
+                                           unsigned int n_pos_joints)
+  : controller_ns_(controller_ns), n_pos_joints_(n_pos_joints)
 {
-  positions.resize(n_joints);
-  velocities.resize(n_joints);
+  KDL::JntArray init_setpoint(n_pos_joints);
+  rec_setpoint.writeFromNonRT(init_setpoint);
+
+  pnh_ = ros::NodeHandle(controller_ns_);
+  sub_rec_setpoint_ = pnh_.subscribe(
+      POS_SETPOINT_NS, 1, &CoordinatedRobotData::setpointCallback, this);
 }
 
-bool CoordinatedRobotData::init(const sensor_msgs::JointState& joint_state)
+void CoordinatedRobotData::setpointCallback(
+    const sensor_msgs::JointStateConstPtr& msg)
 {
-  size_t n_joints = joints.size();
-  joint_state_indices.resize(n_joints);
-
-  for (size_t i = 0; i < n_joints; ++i)
+  KDL::JntArray setpoint(n_pos_joints_);
+  for (size_t i = 0; i < n_pos_joints_; ++i)
   {
-    std::string j = joint_state.name[i];
-    auto it = find(joint_state.name.begin(), joint_state.name.end(), j);
-    if (it == joint_state.name.end())
-    {
-      return false;
-    }
-
-    size_t index = it - joint_state.name.begin();
-    joint_state_indices[i] = index;
+    setpoint(i) = msg->velocity[i];
   }
-  return true;
+  rec_setpoint.writeFromNonRT(setpoint);
 }
 
 bool PositionerController::init(hardware_interface::PositionJointInterface* hw,
@@ -46,6 +41,7 @@ bool PositionerController::init(hardware_interface::PositionJointInterface* hw,
                                        << " from parameter server");
     return false;
   }
+  n_joints_ = joint_names.size();
 
   // store namespaces of controllers coordinated with the positioner
   std::vector<std::string> coordinated_controllers_ns;
@@ -56,30 +52,10 @@ bool PositionerController::init(hardware_interface::PositionJointInterface* hw,
     return false;
   }
 
-  // wait for a joints states topic and find the indices of values for each
-  // coordinated robot
-  sensor_msgs::JointStateConstPtr joint_state =
-      ros::topic::waitForMessage<sensor_msgs::JointState>(JOINT_STATES_TOPIC,
-                                                          ros::Duration(10));
-  if (joint_state == NULL)
-  {
-    ROS_ERROR_STREAM("Timed out waiting for topic:" << JOINT_STATES_TOPIC);
-    return false;
-  }
-
+  KDL::JntArray init_setpoint(n_joints_);
   for (const std::string& ns : coordinated_controllers_ns)
   {
-    std::string param = ns + "/joints";
-    std::vector<std::string> controller_joints;
-    if (!nh.getParam(param, controller_joints))
-    {
-      ROS_ERROR_STREAM("Failed to load" << param
-                                        << " from the parameter server");
-      return false;
-    }
-    robot_data_[ns] =
-        std::make_shared<CoordinatedRobotData>(ns, controller_joints);
-    robot_data_[ns]->init(*joint_state);
+    robot_data_[ns] = std::make_shared<CoordinatedRobotData>(ns, n_joints_);
   }
 
   // Get joint handles from hardware interface
@@ -98,40 +74,28 @@ bool PositionerController::init(hardware_interface::PositionJointInterface* hw,
     }
   }
 
-  // Setup ROS components
-  sub_joint_states_ = nh.subscribe(
-      "/joint_states", 1, &PositionerController::jointStateCallback, this);
-
   return true;
 }
 
-void PositionerController::update(const ros::Time& time, const ros::Duration& period)
+void PositionerController::update(const ros::Time& time,
+                                  const ros::Duration& period)
 {
-  for (auto& handle : joint_handles_)
+  // temp
+  double cmd = 0.0;
+  for (auto& robot : robot_data_)
   {
-    double old = handle.getPosition();
-    //handle.setCommand(old + 0.0005);
-    handle.setCommand(sin(time.toSec()));
+    auto robot_rec_cmd = robot.second->rec_setpoint.readFromRT();
+    cmd += robot_rec_cmd->data[0];
   }
+
+  double new_position =
+      joint_handles_[0].getPosition() + (cmd * period.toSec());
+  joint_handles_[0].setCommand(new_position);
+  return;
 }
 
 void PositionerController::starting(const ros::Time&) {}
 void PositionerController::stopping(const ros::Time&) {}
-
-void PositionerController::jointStateCallback(
-    const sensor_msgs::JointStateConstPtr& msg)
-{
-  for (auto robot : robot_data_)
-  {
-    for (size_t i = 0; i < robot.second->n_joints; ++i)
-    {
-      robot.second->positions(i) =
-          msg->position[robot.second->joint_state_indices[i]];
-    }
-  }
-
-  // TODO: update robot jacobians etc.
-}
 
 }  // namespace coordinated_motion_controllers
 

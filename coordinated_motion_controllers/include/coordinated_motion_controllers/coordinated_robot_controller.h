@@ -10,6 +10,7 @@
 #include <sensor_msgs/JointState.h>
 #include <coordinated_control_msgs/Setpoint.h>
 #include <realtime_tools/realtime_buffer.h>
+#include <realtime_tools/realtime_publisher.h>
 #include <dynamic_reconfigure/server.h>
 #include <coordinated_motion_controllers/CoordinatedControllerConfig.h>
 
@@ -54,8 +55,11 @@ private:
   // state
   KDL::JntArrayVel robot_state_;
 
+  // positioner
   realtime_tools::RealtimeBuffer<KDL::JntArrayVel> positioner_state_;
   ros::Subscriber sub_positioner_joint_states_;
+  std::unique_ptr<realtime_tools::RealtimePublisher<sensor_msgs::JointState>>
+      positioner_setpoint_pub_;
 
   // setpoint
   realtime_tools::RealtimeBuffer<Setpoint> setpoint_;

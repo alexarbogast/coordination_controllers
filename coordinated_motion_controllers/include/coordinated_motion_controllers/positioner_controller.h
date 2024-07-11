@@ -4,6 +4,7 @@
 #include <kdl/jntarray.hpp>
 
 #include <sensor_msgs/JointState.h>
+#include <realtime_tools/realtime_buffer.h>
 
 #include <controller_interface/controller.h>
 #include <hardware_interface/joint_command_interface.h>
@@ -11,20 +12,23 @@
 namespace coordinated_motion_controllers
 {
 
-struct CoordinatedRobotData
+class CoordinatedRobotData
 {
+public:
   CoordinatedRobotData(const std::string& controller_ns,
-                       const std::vector<std::string>& joints);
+                       unsigned int n_pos_joints);
 
-  bool init(const sensor_msgs::JointState& joint_state);
+  realtime_tools::RealtimeBuffer<KDL::JntArray> rec_setpoint;
 
-  std::string controller_ns;
-  std::vector<std::string> joints;
-  size_t n_joints;
+private:
+  void setpointCallback(const sensor_msgs::JointStateConstPtr& msg);
 
-  // state
-  std::vector<size_t> joint_state_indices;
-  KDL::JntArray positions, velocities;
+private:
+  std::string controller_ns_;
+  unsigned int n_pos_joints_;
+
+  ros::NodeHandle pnh_;
+  ros::Subscriber sub_rec_setpoint_;
 };
 
 class PositionerController : public controller_interface::Controller<
@@ -33,14 +37,13 @@ class PositionerController : public controller_interface::Controller<
 public:
   virtual bool init(hardware_interface::PositionJointInterface* hw,
                     ros::NodeHandle& nh) override;
-  virtual void update(const ros::Time& time, const ros::Duration& period) override;
+  virtual void update(const ros::Time& time,
+                      const ros::Duration& period) override;
   virtual void starting(const ros::Time&) override;
   virtual void stopping(const ros::Time&) override;
 
 private:
-  void jointStateCallback(const sensor_msgs::JointStateConstPtr& msg);
-
-private:
+  unsigned int n_joints_;
   std::vector<hardware_interface::JointHandle> joint_handles_;
   std::unordered_map<std::string, std::shared_ptr<CoordinatedRobotData>>
       robot_data_;
