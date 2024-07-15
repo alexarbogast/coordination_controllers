@@ -241,7 +241,7 @@ void RobotController::synchronizeJointStates()
 }
 
 void RobotController::setpointCallback(
-    const coordinated_control_msgs::SetpointConstPtr& msg)
+    const coordinated_control_msgs::RobotSetpointConstPtr& msg)
 {
   Setpoint new_setpoint;
   // clang-format off

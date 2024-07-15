@@ -8,7 +8,8 @@
 #include <kdl/jntarrayvel.hpp>
 
 #include <sensor_msgs/JointState.h>
-#include <coordinated_control_msgs/Setpoint.h>
+#include <coordinated_control_msgs/RobotSetpoint.h>
+#include <coordinated_control_msgs/PositionerSetpoint.h>
 #include <realtime_tools/realtime_buffer.h>
 #include <realtime_tools/realtime_publisher.h>
 #include <dynamic_reconfigure/server.h>
@@ -34,7 +35,8 @@ public:
 private:
   void synchronizeJointStates();
   void posJointStateCallback(const sensor_msgs::JointStateConstPtr& msg);
-  void setpointCallback(const coordinated_control_msgs::SetpointConstPtr& msg);
+  void
+  setpointCallback(const coordinated_control_msgs::RobotSetpointConstPtr& msg);
   void reconfCallback(CoordinatedControllerConfig& config, uint16_t /*level*/);
 
 private:
@@ -58,7 +60,8 @@ private:
   // positioner
   realtime_tools::RealtimeBuffer<KDL::JntArrayVel> positioner_state_;
   ros::Subscriber sub_positioner_joint_states_;
-  std::unique_ptr<realtime_tools::RealtimePublisher<sensor_msgs::JointState>>
+  std::unique_ptr<realtime_tools::RealtimePublisher<
+      coordinated_control_msgs::PositionerSetpoint>>
       positioner_setpoint_pub_;
 
   // setpoint

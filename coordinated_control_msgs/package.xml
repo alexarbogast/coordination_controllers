@@ -2,7 +2,7 @@
 <package format="2">
   <name>coordinated_control_msgs</name>
   <version>0.1.0</version>
-  <description> coordinated_control_msgs provides message and action definitions 
+  <description> coordinated_control_msgs provides message and action definitions
   for coordinated controllers </description>
   <author email="arbogastaw@gmail.com">Alex Arbogast</author>
   <maintainer email="arbogastaw@gmail.com">Alex Arbogast</maintainer>
@@ -12,5 +12,6 @@
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
 
+  <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
 </package>

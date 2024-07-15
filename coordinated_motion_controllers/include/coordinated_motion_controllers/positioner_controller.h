@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <kdl/jntarray.hpp>
 
-#include <sensor_msgs/JointState.h>
+#include <coordinated_control_msgs/PositionerSetpoint.h>
 #include <realtime_tools/realtime_buffer.h>
 
 #include <controller_interface/controller.h>
@@ -19,9 +19,11 @@ public:
                        unsigned int n_pos_joints);
 
   realtime_tools::RealtimeBuffer<KDL::JntArray> rec_setpoint;
+  std::atomic<bool> coord;
 
 private:
-  void setpointCallback(const sensor_msgs::JointStateConstPtr& msg);
+  void setpointCallback(
+      const coordinated_control_msgs::PositionerSetpointConstPtr& msg);
 
 private:
   std::string controller_ns_;

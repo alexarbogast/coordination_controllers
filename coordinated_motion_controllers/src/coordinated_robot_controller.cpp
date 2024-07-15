@@ -167,9 +167,9 @@ bool CoordinatedRobotController::init(
   sub_setpoint_ = nh.subscribe(
       setpoint_topic, 1, &CoordinatedRobotController::setpointCallback, this);
 
-  positioner_setpoint_pub_ = std::make_unique<
-      realtime_tools::RealtimePublisher<sensor_msgs::JointState>>(
-      nh, POS_SETPOINT_NS, 1);
+  positioner_setpoint_pub_ = std::make_unique<realtime_tools::RealtimePublisher<
+      coordinated_control_msgs::PositionerSetpoint>>(nh, POS_SETPOINT_NS, 1);
+  positioner_setpoint_pub_->msg_.coordinated = false;
   positioner_setpoint_pub_->msg_.velocity.resize(n_pos_joints_);
 
   // Dynamic reconfigure
@@ -307,9 +307,15 @@ void CoordinatedRobotController::starting(const ros::Time&)
   init_setpoint.position = Eigen::Vector3d(init_pose_pf.p.data);
 
   setpoint_.initRT(init_setpoint);
+
+  positioner_setpoint_pub_->msg_.coordinated = true;
 }
 
-void CoordinatedRobotController::stopping(const ros::Time&) {}
+void CoordinatedRobotController::stopping(const ros::Time&)
+{
+  positioner_setpoint_pub_->msg_.coordinated = false;
+  positioner_setpoint_pub_->unlockAndPublish();
+}
 
 void CoordinatedRobotController::synchronizeJointStates()
 {
@@ -334,7 +340,7 @@ void CoordinatedRobotController::posJointStateCallback(
 }
 
 void CoordinatedRobotController::setpointCallback(
-    const coordinated_control_msgs::SetpointConstPtr& msg)
+    const coordinated_control_msgs::RobotSetpointConstPtr& msg)
 {
   Setpoint new_setpoint;
   // clang-format off

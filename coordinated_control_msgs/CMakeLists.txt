@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(coordinated_control_msgs)
 
 find_package(catkin REQUIRED COMPONENTS
+  std_msgs
   geometry_msgs
   message_generation
 )
@@ -10,11 +11,13 @@ add_message_files(
   DIRECTORY msg
   FILES
     AxiallySymmetricPose.msg
-    Setpoint.msg
+    RobotSetpoint.msg
+    PositionerSetpoint.msg
 )
 
 generate_messages(
   DEPENDENCIES
+    std_msgs
     geometry_msgs
 )
 

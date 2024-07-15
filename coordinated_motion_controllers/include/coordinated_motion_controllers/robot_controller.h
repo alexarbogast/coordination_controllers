@@ -7,7 +7,7 @@
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/jntarrayvel.hpp>
 
-#include <coordinated_control_msgs/Setpoint.h>
+#include <coordinated_control_msgs/RobotSetpoint.h>
 #include <realtime_tools/realtime_buffer.h>
 #include <dynamic_reconfigure/server.h>
 #include <coordinated_motion_controllers/CoordinatedControllerConfig.h>
@@ -30,7 +30,8 @@ public:
 
 private:
   void synchronizeJointStates();
-  void setpointCallback(const coordinated_control_msgs::SetpointConstPtr& msg);
+  void
+  setpointCallback(const coordinated_control_msgs::RobotSetpointConstPtr& msg);
   void reconfCallback(CoordinatedControllerConfig& config, uint16_t /*level*/);
 
 private:
