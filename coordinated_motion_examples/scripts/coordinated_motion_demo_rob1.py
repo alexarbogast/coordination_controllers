@@ -1,9 +1,4 @@
-from typing import List
-from copy import deepcopy
-from numpy.typing import NDArray
 import numpy as np
-import quaternion
-
 import rospy
 import actionlib
 
@@ -11,12 +6,11 @@ from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryG
 from trajectory_msgs.msg import JointTrajectoryPoint
 from controller_manager_msgs.srv import SwitchController, SwitchControllerRequest
 
-from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import Point, Vector3
+from geometry_msgs.msg import Vector3
 from std_msgs.msg import ColorRGBA
-from geometry_msgs.msg import Quaternion as QuaternionMsg
+from coordinated_control_msgs.msg import RobotSetpoint
 
-from coordinated_control_msgs.msg import Setpoint
+from coordinated_motion_examples import PathVisualization
 
 
 def hypotrochoid(scaling):
@@ -36,67 +30,6 @@ def hypotrochoid(scaling):
         ]
     )
     return f, f_dot
-
-
-class MarkerVisualization(object):
-    def __init__(self, radius: float, color: ColorRGBA):
-        self.r = radius
-        self.color = color
-        self.marker_id = 0
-
-        self.cylinder_marker = Marker()
-        self.cylinder_marker.ns = "cylinder"
-        self.cylinder_marker.action = Marker.ADD
-        self.cylinder_marker.type = Marker.CYLINDER
-        self.cylinder_marker.frame_locked = True
-
-        self.reset_marker = Marker()
-        self.reset_marker.header.stamp = rospy.Time()
-        self.reset_marker.action = Marker.DELETEALL
-
-        self.vis_pub = rospy.Publisher(
-            "visualization_marker_array", MarkerArray, queue_size=1, latch=True
-        )
-
-    def visualize_path(self, path: List[NDArray], frame="world"):
-        marker_array = MarkerArray()
-
-        for i in range(len(path) - 1):
-            p1, p2 = path[i], path[i + 1]
-            marker = self.make_cylinder(p1, p2)
-            marker.id = self.marker_id
-            marker.header.stamp = rospy.Time.now()
-            marker.header.frame_id = frame
-            marker_array.markers.append(marker)
-            self.marker_id += 1
-
-        self.vis_pub.publish(marker_array)
-
-    def make_cylinder(self, p1: NDArray, p2: NDArray):
-        v = p2 - p1
-        h = np.linalg.norm(v)
-        center = np.average([p1, p2], axis=0)
-
-        u = v / h
-        z_axis = np.array([0, 0, 1])
-        axis = np.cross(z_axis, u)
-        norm = np.linalg.norm(axis)
-        if norm > 0:
-            axis /= norm
-        angle = np.arccos(np.dot(z_axis, u))
-        q = quaternion.from_rotation_vector(angle * axis)
-
-        marker = deepcopy(self.cylinder_marker)
-        marker.pose.orientation = QuaternionMsg(q.x, q.y, q.z, q.w)
-        marker.pose.position = Point(center[0], center[1], center[2])
-        marker.scale = Vector3(self.r, self.r, h)
-        marker.color = self.color
-        return marker
-
-    def reset(self):
-        self.marker_id = 0
-        marker_array = MarkerArray([self.reset_marker])
-        self.vis_pub.publish(marker_array)
 
 
 class ControllerManagerClient(object):
@@ -121,12 +54,15 @@ class ControllerManagerClient(object):
 class CoordinatedMotionDemo(object):
     def __init__(self):
         self.task_space_setpoint_pub = rospy.Publisher(
-            "/rob1/task_space_controller/setpoint", Setpoint, latch=True, queue_size=1
+            "/rob1/task_space_controller/setpoint",
+            RobotSetpoint,
+            latch=True,
+            queue_size=1,
         )
 
         self.coordinated_setpoint_pub = rospy.Publisher(
             "/rob1/coordinated_motion_controller/setpoint",
-            Setpoint,
+            RobotSetpoint,
             latch=True,
             queue_size=1,
         )
@@ -137,9 +73,8 @@ class CoordinatedMotionDemo(object):
         )
         self.joint_traj_client.wait_for_server()
         self.controller_client = ControllerManagerClient("rob1")
-        self.marker_viz = MarkerVisualization(
-            0.007,
-            ColorRGBA(244 / 255, 96 / 255, 54 / 255, 0.8),
+        self.path_viz = PathVisualization(
+            0.007, ColorRGBA(244 / 255, 96 / 255, 54 / 255, 0.8), "rob1"
         )
 
     def run(self):
@@ -152,11 +87,12 @@ class CoordinatedMotionDemo(object):
             ["task_space_controller"], ["joint_trajectory_controller"]
         )
         self.task_space_hypotrochoid()
+
         self.controller_client.switch_controller(
             ["coordinated_motion_controller"], ["task_space_controller"]
         )
-
         self.coordinated_hypotrochoid()
+
         self.controller_client.switch_controller(
             ["joint_trajectory_controller"], ["coordinated_motion_controller"]
         )
@@ -164,18 +100,18 @@ class CoordinatedMotionDemo(object):
 
     def task_space_hypotrochoid(self):
         scaling = 1 / 25
-        tt = np.linspace(0, 2 * np.pi * 5, 1000)
+        tt = np.linspace(0, 6 * np.pi, 1000)
         f, f_dot = hypotrochoid(scaling)
 
-        self.marker_viz.visualize_path(
+        self.path_viz.visualize_path(
             [
                 f(t, 0.1) + np.array([0.5, 0.0, 0.0])
-                for t in np.linspace(0, 2 * np.pi * 5, 500)
+                for t in np.linspace(0, 6 * np.pi, 500)
             ],
             "rob1_base_link",
         )
 
-        setpoint = Setpoint()
+        setpoint = RobotSetpoint()
         setpoint.pose.aiming = Vector3(0.0, 0.0, 1.0)
 
         rate = rospy.Rate(100)
@@ -188,19 +124,19 @@ class CoordinatedMotionDemo(object):
             self.task_space_setpoint_pub.publish(setpoint)
             rate.sleep()
 
-        self.marker_viz.reset()
+        self.path_viz.reset()
 
     def coordinated_hypotrochoid(self):
         scaling = 1 / 25
-        tt = np.linspace(0, 2 * np.pi * 5, 1500)
+        tt = np.linspace(0, 6 * np.pi, 1500)
         f, f_dot = hypotrochoid(scaling)
 
-        self.marker_viz.visualize_path(
-            [f(t, 0.01) for t in np.linspace(0, 2 * np.pi * 5, 500)],
+        self.path_viz.visualize_path(
+            [f(t, 0.01) for t in np.linspace(0, 6 * np.pi, 500)],
             "positioner",
         )
 
-        setpoint = Setpoint()
+        setpoint = RobotSetpoint()
         setpoint.pose.aiming = Vector3(0.0, 0.0, 1.0)
 
         rate = rospy.Rate(100)
@@ -213,7 +149,7 @@ class CoordinatedMotionDemo(object):
             self.coordinated_setpoint_pub.publish(setpoint)
             rate.sleep()
 
-        self.marker_viz.reset()
+        self.path_viz.reset()
 
     def move_home(self):
         home = [
@@ -246,7 +182,7 @@ class CoordinatedMotionDemo(object):
 
 
 if __name__ == "__main__":
-    rospy.init_node("coordinated_motion_demo")
+    rospy.init_node("coordinated_motion_demo_rob1")
 
     try:
         demo = CoordinatedMotionDemo()

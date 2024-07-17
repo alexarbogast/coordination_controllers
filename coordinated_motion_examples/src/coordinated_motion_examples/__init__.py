@@ -1,0 +1,1 @@
+from coordinated_motion_examples.path_visualization import PathVisualization

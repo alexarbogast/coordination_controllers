@@ -1,15 +1,12 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(coordinated_motion_examples)
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
-endif(NOT CMAKE_BUILD_TYPE)
-set(CMAKE_CXX_STANDARD 17)
-
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
 )
+
+catkin_python_setup()
 
 catkin_package(CATKIN_DEPENDS
   roscpp
@@ -19,7 +16,8 @@ catkin_package(CATKIN_DEPENDS
 include_directories(${catkin_INCLUDE_DIRS})
 
 catkin_install_python(PROGRAMS
-  scripts/coordinated_motion_demo.py
+  scripts/coordinated_motion_demo_rob1.py
+  scripts/coordinated_motion_demo_rob2.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
