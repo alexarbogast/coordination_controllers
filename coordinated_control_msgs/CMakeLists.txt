@@ -15,6 +15,12 @@ add_message_files(
     PositionerSetpoint.msg
 )
 
+add_service_files(
+  DIRECTORY srv
+  FILES
+    QueryPose.srv
+)
+
 generate_messages(
   DEPENDENCIES
     std_msgs

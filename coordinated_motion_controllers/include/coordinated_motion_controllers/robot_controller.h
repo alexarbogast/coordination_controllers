@@ -8,6 +8,7 @@
 #include <kdl/jntarrayvel.hpp>
 
 #include <coordinated_control_msgs/RobotSetpoint.h>
+#include <coordinated_control_msgs/QueryPose.h>
 #include <realtime_tools/realtime_buffer.h>
 #include <dynamic_reconfigure/server.h>
 #include <coordinated_motion_controllers/CoordinatedControllerConfig.h>
@@ -30,9 +31,12 @@ public:
 
 private:
   void synchronizeJointStates();
+
+  void reconfCallback(CoordinatedControllerConfig& config, uint16_t /*level*/);
   void
   setpointCallback(const coordinated_control_msgs::RobotSetpointConstPtr& msg);
-  void reconfCallback(CoordinatedControllerConfig& config, uint16_t /*level*/);
+  bool queryPoseService(coordinated_control_msgs::QueryPose::Request& req,
+                        coordinated_control_msgs::QueryPose::Response& resp);
 
 private:
   unsigned int n_joints_;
@@ -69,6 +73,8 @@ private:
   typedef dynamic_reconfigure::Server<CoordinatedControllerConfig>
       ReconfigureServer;
   std::shared_ptr<ReconfigureServer> dyn_reconf_server_;
+
+  ros::ServiceServer query_pose_service_;
 };
 
 }  // namespace coordinated_motion_controllers

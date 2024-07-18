@@ -133,6 +133,10 @@ bool RobotController::init(hardware_interface::PositionJointInterface* hw,
                                             this, std::placeholders::_1,
                                             std::placeholders::_2));
 
+  // Services
+  query_pose_service_ = nh.advertiseService(
+      "query_pose", &RobotController::queryPoseService, this);
+
   return true;
 }
 
@@ -270,6 +274,28 @@ void RobotController::reconfCallback(CoordinatedControllerConfig& config,
   dynamic_params.k_manip = config.k_manip;
 
   dynamic_params_.writeFromNonRT(dynamic_params);
+}
+
+bool RobotController::queryPoseService(
+    coordinated_control_msgs::QueryPose::Request& req,
+    coordinated_control_msgs::QueryPose::Response& resp)
+{
+  KDL::JntArray robot_state(n_joints_);
+  for (unsigned int i = 0; i < n_joints_; ++i)
+  {
+    robot_state(i) = joint_handles_[i].getPosition();
+  }
+
+  KDL::Frame pose;
+  robot_fk_solver_->JntToCart(robot_state, pose);
+
+  resp.pose.position.x = pose.p.x();
+  resp.pose.position.y = pose.p.y();
+  resp.pose.position.z = pose.p.z();
+
+  pose.M.GetQuaternion(resp.pose.orientation.x, resp.pose.orientation.y,
+                       resp.pose.orientation.z, resp.pose.orientation.w);
+  return true;
 }
 
 }  // namespace coordinated_motion_controllers

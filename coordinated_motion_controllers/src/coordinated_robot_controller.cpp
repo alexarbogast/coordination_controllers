@@ -178,6 +178,10 @@ bool CoordinatedRobotController::init(
       std::bind(&CoordinatedRobotController::reconfCallback, this,
                 std::placeholders::_1, std::placeholders::_2));
 
+  // Services
+  query_pose_service_ = nh.advertiseService(
+      "query_pose", &CoordinatedRobotController::queryPoseService, this);
+
   return true;
 }
 
@@ -275,8 +279,15 @@ void CoordinatedRobotController::update(const ros::Time&,
   }
 
   /* desired positioner command */
-  Eigen::VectorXd pos_setpoint =
-      (Jp.transpose() * Jp).inverse() * Jp.transpose() * cart_cmd;
+  // Eigen::Matrix<double, 6, 1> test;
+  // test << -0.3682676987777704, -0.845456854726745, 1.8581698861744447,
+  //    0.5580733655537403, 1.5707974618414442, 0.18855996186926843;
+  // Eigen::VectorXd robot_qdot_attempt = (test - robot_state_.q.data);
+
+  Eigen::VectorXd robot_qdot_attempt = manip_grad;
+  Eigen::VectorXd pos_setpoint = (Jp.transpose() * Jp).inverse() *
+                                 Jp.transpose() *
+                                 (cart_cmd - Jr * robot_qdot_attempt);
 
   if (positioner_setpoint_pub_->trylock())
   {
@@ -369,6 +380,32 @@ void CoordinatedRobotController::reconfCallback(
   dynamic_params.k_manip = config.k_manip;
 
   dynamic_params_.writeFromNonRT(dynamic_params);
+}
+
+bool CoordinatedRobotController::queryPoseService(
+    coordinated_control_msgs::QueryPose::Request& req,
+    coordinated_control_msgs::QueryPose::Response& resp)
+{
+  KDL::JntArray robot_state(n_robot_joints_);
+  for (unsigned int i = 0; i < n_robot_joints_; ++i)
+  {
+    robot_state(i) = joint_handles_[i].getPosition();
+  }
+
+  KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
+  combined_positions.data << positioner_state_.readFromNonRT()->q.data,
+      robot_state.data;
+
+  KDL::Frame pose;
+  coordinated_fk_solver_->JntToCart(combined_positions, pose);
+
+  resp.pose.position.x = pose.p.x();
+  resp.pose.position.y = pose.p.y();
+  resp.pose.position.z = pose.p.z();
+
+  pose.M.GetQuaternion(resp.pose.orientation.x, resp.pose.orientation.y,
+                       resp.pose.orientation.z, resp.pose.orientation.w);
+  return true;
 }
 
 }  // namespace coordinated_motion_controllers
