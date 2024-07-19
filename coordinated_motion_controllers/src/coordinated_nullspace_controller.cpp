@@ -33,6 +33,7 @@ static const Eigen::Matrix<double, 5, 5> identity5x5 =
 static const double MANIP_THRESHOLD = 1e-6;
 
 static const std::string POS_SETPOINT_NS = "pos_setpoint";
+static const std::string DIAGNOSTICS_NS = "diagnostics";
 
 bool CoordinatedNullspaceController::init(
     hardware_interface::PositionJointInterface* hw, ros::NodeHandle& nh)
@@ -226,6 +227,10 @@ bool CoordinatedNullspaceController::init(
   positioner_setpoint_pub_->msg_.coordinated = false;
   positioner_setpoint_pub_->msg_.velocity.resize(n_pos_joints_);
 
+  diagnostics_pub_ = std::make_unique<
+      realtime_tools::RealtimePublisher<coordinated_control_msgs::Diagnostics>>(
+      nh, DIAGNOSTICS_NS, 1);
+
   // Dynamic reconfigure
   dyn_reconf_server_ = std::make_shared<ReconfigureServer>(nh);
   dyn_reconf_server_->setCallback(
@@ -359,6 +364,18 @@ void CoordinatedNullspaceController::update(const ros::Time&,
     Eigen::VectorXd::Map(&positioner_setpoint_pub_->msg_.velocity[0],
                          pos_setpoint.size()) = pos_setpoint;
     positioner_setpoint_pub_->unlockAndPublish();
+  }
+
+  /* diagnostics */
+  if (diagnostics_pub_->trylock())
+  {
+    diagnostics_pub_->msg_.tracking_error_x = pos_error[0];
+    diagnostics_pub_->msg_.tracking_error_y = pos_error[1];
+    diagnostics_pub_->msg_.tracking_error_z = pos_error[2];
+    diagnostics_pub_->msg_.tracking_error_norm = pos_error.norm();
+    diagnostics_pub_->msg_.manipulability = manip;
+    diagnostics_pub_->msg_.aiming_error = rot_angle;
+    diagnostics_pub_->unlockAndPublish();
   }
 }
 

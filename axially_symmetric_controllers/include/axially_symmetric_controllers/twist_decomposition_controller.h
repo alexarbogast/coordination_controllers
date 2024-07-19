@@ -24,7 +24,9 @@
 
 #include <coordinated_control_msgs/AxiallySymmetricSetpoint.h>
 #include <coordinated_control_msgs/QueryPose.h>
+#include <coordinated_control_msgs/Diagnostics.h>
 #include <realtime_tools/realtime_buffer.h>
+#include <realtime_tools/realtime_publisher.h>
 #include <dynamic_reconfigure/server.h>
 #include <axially_symmetric_controllers/AxiallySymmetricControllerConfig.h>
 
@@ -98,6 +100,11 @@ private:
   std::shared_ptr<ReconfigureServer> dyn_reconf_server_;
 
   ros::ServiceServer query_pose_service_;
+
+  // diagnostics
+  std::unique_ptr<
+      realtime_tools::RealtimePublisher<coordinated_control_msgs::Diagnostics>>
+      diagnostics_pub_;
 };
 
 }  // namespace axially_symmetric_controllers

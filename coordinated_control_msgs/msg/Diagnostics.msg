@@ -1,0 +1,6 @@
+float64 tracking_error_x
+float64 tracking_error_y
+float64 tracking_error_z
+float64 tracking_error_norm
+float64 aiming_error
+float64 manipulability

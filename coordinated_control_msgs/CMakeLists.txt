@@ -12,6 +12,7 @@ add_message_files(
   FILES
     AxiallySymmetricSetpoint.msg
     PositionerSetpoint.msg
+    Diagnostics.msg
 )
 
 add_service_files(

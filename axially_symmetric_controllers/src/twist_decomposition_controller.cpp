@@ -29,6 +29,8 @@ namespace axially_symmetric_controllers
 
 static double MANIP_THRESHOLD = 1e-10;
 
+static const std::string DIAGNOSTICS_NS = "diagnostics";
+
 bool TwistDecompositionController::init(
     hardware_interface::PositionJointInterface* hw, ros::NodeHandle& nh)
 {
@@ -167,6 +169,10 @@ bool TwistDecompositionController::init(
   sub_setpoint_ = nh.subscribe(
       setpoint_topic, 1, &TwistDecompositionController::setpointCallback, this);
 
+  diagnostics_pub_ = std::make_unique<
+      realtime_tools::RealtimePublisher<coordinated_control_msgs::Diagnostics>>(
+      nh, DIAGNOSTICS_NS, 1);
+
   // Dynamic reconfigure
   dyn_reconf_server_ = std::make_shared<ReconfigureServer>(nh);
   dyn_reconf_server_->setCallback(
@@ -261,6 +267,18 @@ void TwistDecompositionController::update(const ros::Time&,
   for (unsigned int i = 0; i < n_joints_; ++i)
   {
     joint_handles_[i].setCommand(new_position[i]);
+  }
+
+  /* diagnostics */
+  if (diagnostics_pub_->trylock())
+  {
+    diagnostics_pub_->msg_.tracking_error_x = pos_error[0];
+    diagnostics_pub_->msg_.tracking_error_y = pos_error[1];
+    diagnostics_pub_->msg_.tracking_error_z = pos_error[2];
+    diagnostics_pub_->msg_.tracking_error_norm = pos_error.norm();
+    diagnostics_pub_->msg_.manipulability = manip;
+    diagnostics_pub_->msg_.aiming_error = rot_angle;
+    diagnostics_pub_->unlockAndPublish();
   }
 }
 
