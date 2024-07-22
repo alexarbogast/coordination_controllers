@@ -49,6 +49,7 @@ private:
   std::string positioner_link_, base_link_, eef_link_;
 
   Eigen::Vector3d aiming_vec_;
+  Eigen::VectorXd home_config_;
 
   // kinematics
   KDL::Chain coordinated_chain_, robot_chain_;

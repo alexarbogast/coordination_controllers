@@ -130,7 +130,6 @@ bool CoordinatedRobotController::init(
   limits_bounds_.resize(n_robot_joints_);
   limits_bounds_.data = (upper_pos_limits.data - lower_pos_limits.data) / 2;
 
-
   // Get joint handles from hardware interface
   joint_handles_.resize(n_robot_joints_);
   for (size_t i = 0; i < n_robot_joints_; ++i)
@@ -187,6 +186,17 @@ bool CoordinatedRobotController::init(
     return false;
   }
   aiming_vec_ = Eigen::Vector3d(aiming_vec.data());
+
+  // Read home configuration
+  std::vector<double> home_config;
+  if (!nh.getParam("home_config", home_config))
+  {
+    ROS_ERROR_STREAM("Failed to load " << ns << "/home_config"
+                                       << " from parameter server");
+    return false;
+  }
+  home_config_ = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(
+      home_config.data(), home_config.size());
 
   // Setup ROS components
   sub_positioner_joint_states_ =
@@ -324,13 +334,9 @@ void CoordinatedRobotController::update(const ros::Time&,
   }
 
   /* desired positioner command */
-  // Eigen::Matrix<double, 6, 1> test;
-  // test << -0.3682676987777704, -0.845456854726745, 1.8581698861744447,
-  //    0.5580733655537403, 1.5707974618414442, 0.18855996186926843;
-  // test << 0.484, 0.425, 0.661, 1.959, -1.77, -0.446;
-  // Eigen::VectorXd robot_qdot_attempt = (test - robot_state_.q.data);
+  Eigen::VectorXd robot_qdot_attempt = (home_config_ - robot_state_.q.data);
+  //Eigen::VectorXd robot_qdot_attempt = manip_grad;
 
-  Eigen::VectorXd robot_qdot_attempt = manip_grad;
   Eigen::VectorXd pos_setpoint = (Jp.transpose() * Jp).inverse() *
                                  Jp.transpose() *
                                  (cart_cmd - Jr * robot_qdot_attempt);

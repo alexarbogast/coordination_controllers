@@ -44,6 +44,8 @@ rob1:
     base_link: rob1_base_link
     eef_link: rob1_tool0
 
+    home_config: [-0.37, -0.85, 1.86, 0.558, 1.57, 0.189]
+
     positioner_topic: /positioner/joint_states
     setpoint_topic: setpoint
 
@@ -103,6 +105,8 @@ rob2:
     positioner_link: positioner
     base_link: rob2_base_link
     eef_link: rob2_tool0
+
+    home_config: [-0.37, -0.85, 1.86, 0.558, 1.57, 0.189]
 
     positioner_topic: /positioner/joint_states
     setpoint_topic: setpoint
