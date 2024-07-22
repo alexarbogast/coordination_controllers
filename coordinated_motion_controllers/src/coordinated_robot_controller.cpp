@@ -93,7 +93,7 @@ bool CoordinatedRobotController::init(
   robot_fk_solver_ =
       std::make_unique<KDL::ChainFkSolverPos_recursive>(robot_chain_);
 
-  // Get joint handles from hardware interface
+  // Parse joint limits
   std::vector<std::string> joint_names;
   if (!nh.getParam("joints", joint_names))
   {
@@ -103,6 +103,35 @@ bool CoordinatedRobotController::init(
   }
   n_robot_joints_ = joint_names.size();
 
+  KDL::JntArray upper_pos_limits(n_robot_joints_);
+  KDL::JntArray lower_pos_limits(n_robot_joints_);
+  for (size_t i = 0; i < n_robot_joints_; ++i)
+  {
+    if (!urdf_model.getJoint(joint_names[i]))
+    {
+      ROS_ERROR_STREAM("Joint " + joint_names[i] + " does not exist in URDF");
+      return false;
+    }
+    if (urdf_model.getJoint(joint_names[i])->type == urdf::Joint::CONTINUOUS)
+    {
+      upper_pos_limits(i) = std::nan("0");
+      lower_pos_limits(i) = std::nan("0");
+    }
+    else
+    {
+      upper_pos_limits(i) = urdf_model.getJoint(joint_names[i])->limits->upper;
+      lower_pos_limits(i) = urdf_model.getJoint(joint_names[i])->limits->lower;
+    }
+  }
+
+  limits_avg_.resize(n_robot_joints_);
+  limits_avg_.data = (upper_pos_limits.data + lower_pos_limits.data) / 2;
+
+  limits_bounds_.resize(n_robot_joints_);
+  limits_bounds_.data = (upper_pos_limits.data - lower_pos_limits.data) / 2;
+
+
+  // Get joint handles from hardware interface
   joint_handles_.resize(n_robot_joints_);
   for (size_t i = 0; i < n_robot_joints_; ++i)
   {
@@ -221,6 +250,7 @@ void CoordinatedRobotController::update(const ros::Time&,
       setpoint->position - Eigen::Vector3d(pose_pf.p.data);
 
   /* redundancy resolution */
+  // manipulability maximization
   Eigen::MatrixXd J_JT = rob_jac.data * rob_jac.data.transpose();
   double manip = sqrt(J_JT.determinant());
 
@@ -247,6 +277,21 @@ void CoordinatedRobotController::update(const ros::Time&,
   {
     manip_grad.setZero();
   }
+  Eigen::VectorXd q_manip = manip_grad;
+
+  // joint limit avoidance
+  Eigen::VectorXd eq = robot_state_.q.data - limits_avg_.data;
+  Eigen::VectorXd eq_b = eq.array() / limits_bounds_.data.array();
+  Eigen::VectorXd eq_trans = ((1 + eq_b.array()) / (1 - eq_b.array())).log();
+  Eigen::VectorXd pT = 2 / ((limits_bounds_.data + eq).array() *
+                            (limits_bounds_.data - eq).array());
+
+  Eigen::VectorXd qd_lim = -params->k_limits * pT.array() * eq_trans.array();
+  Eigen::VectorXd lambda = eq_b.cwiseAbs();
+
+  Eigen::VectorXd h =
+      (lambda.array() * qd_lim.array()) +
+      ((1 - lambda.array()) * q_manip.array());  // secondary task command
 
   /* control */
   Eigen::Matrix<double, 5, 1> cart_cmd;
@@ -282,6 +327,7 @@ void CoordinatedRobotController::update(const ros::Time&,
   // Eigen::Matrix<double, 6, 1> test;
   // test << -0.3682676987777704, -0.845456854726745, 1.8581698861744447,
   //    0.5580733655537403, 1.5707974618414442, 0.18855996186926843;
+  // test << 0.484, 0.425, 0.661, 1.959, -1.77, -0.446;
   // Eigen::VectorXd robot_qdot_attempt = (test - robot_state_.q.data);
 
   Eigen::VectorXd robot_qdot_attempt = manip_grad;
@@ -378,6 +424,7 @@ void CoordinatedRobotController::reconfCallback(
   dynamic_params.k_position = config.k_position;
   dynamic_params.k_aiming = config.k_aiming;
   dynamic_params.k_manip = config.k_manip;
+  dynamic_params.k_limits = config.k_limits;
 
   dynamic_params_.writeFromNonRT(dynamic_params);
 }

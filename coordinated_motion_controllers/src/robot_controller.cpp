@@ -2,6 +2,7 @@
 #include <coordinated_motion_controllers/utility.h>
 
 #include <urdf/model.h>
+#include <kdl/jntarray.hpp>
 #include <kdl/jntarrayvel.hpp>
 #include <kdl/tree.hpp>
 #include <kdl/jacobian.hpp>
@@ -34,6 +35,7 @@ bool RobotController::init(hardware_interface::PositionJointInterface* hw,
   {
     ROS_ERROR_STREAM("Failed to load " << robot_description
                                        << " from parameter server");
+    return false;
   }
   if (!nh.getParam("base_link", base_link_))
   {
@@ -78,7 +80,7 @@ bool RobotController::init(hardware_interface::PositionJointInterface* hw,
   robot_fk_solver_ =
       std::make_unique<KDL::ChainFkSolverPos_recursive>(robot_chain_);
 
-  // Get joint handles from hardware interface
+  // Parse joint limits
   std::vector<std::string> joint_names;
   if (!nh.getParam("joints", joint_names))
   {
@@ -88,6 +90,34 @@ bool RobotController::init(hardware_interface::PositionJointInterface* hw,
   }
   n_joints_ = joint_names.size();
 
+  KDL::JntArray upper_pos_limits(n_joints_);
+  KDL::JntArray lower_pos_limits(n_joints_);
+  for (size_t i = 0; i < n_joints_; ++i)
+  {
+    if (!urdf_model.getJoint(joint_names[i]))
+    {
+      ROS_ERROR_STREAM("Joint " + joint_names[i] + " does not exist in URDF");
+      return false;
+    }
+    if (urdf_model.getJoint(joint_names[i])->type == urdf::Joint::CONTINUOUS)
+    {
+      upper_pos_limits(i) = std::nan("0");
+      lower_pos_limits(i) = std::nan("0");
+    }
+    else
+    {
+      upper_pos_limits(i) = urdf_model.getJoint(joint_names[i])->limits->upper;
+      lower_pos_limits(i) = urdf_model.getJoint(joint_names[i])->limits->lower;
+    }
+  }
+
+  limits_avg_.resize(n_joints_);
+  limits_avg_.data = (upper_pos_limits.data + lower_pos_limits.data) / 2;
+
+  limits_bounds_.resize(n_joints_);
+  limits_bounds_.data = (upper_pos_limits.data - lower_pos_limits.data) / 2;
+
+  // Get joint handles from hardware interface
   joint_handles_.resize(n_joints_);
   for (size_t i = 0; i < n_joints_; ++i)
   {
@@ -167,6 +197,7 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
   Eigen::Vector3d pos_error = setpoint->position - Eigen::Vector3d(pose.p.data);
 
   /* redundancy resolution */
+  // manipulability maximization
   Eigen::MatrixXd J_JT = jac.data * jac.data.transpose();
   double manip = sqrt(J_JT.determinant());
 
@@ -193,6 +224,21 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
   {
     manip_grad.setZero();
   }
+  Eigen::VectorXd q_manip = manip_grad;
+
+  // joint limit avoidance
+  Eigen::VectorXd eq = robot_state_.q.data - limits_avg_.data;
+  Eigen::VectorXd eq_b = eq.array() / limits_bounds_.data.array();
+  Eigen::VectorXd eq_trans = ((1 + eq_b.array()) / (1 - eq_b.array())).log();
+  Eigen::VectorXd pT = 2 / ((limits_bounds_.data + eq).array() *
+                            (limits_bounds_.data - eq).array());
+
+  Eigen::VectorXd qd_lim = -params->k_limits * pT.array() * eq_trans.array();
+  Eigen::VectorXd lambda = eq_b.cwiseAbs();
+
+  Eigen::VectorXd h =
+      (lambda.array() * qd_lim.array()) +
+      ((1 - lambda.array()) * q_manip.array());  // secondary task command
 
   /* control */
   Eigen::Matrix<double, 5, 1> cart_cmd;
@@ -206,8 +252,7 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
           .inverse();
 
   Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n_joints_, n_joints_);
-  Eigen::VectorXd joint_cmd =
-      Jr_pinv * cart_cmd + ((I - Jr_pinv * Jr) * manip_grad);
+  Eigen::VectorXd joint_cmd = Jr_pinv * cart_cmd + ((I - Jr_pinv * Jr) * h);
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_joints_; ++i)
@@ -272,6 +317,7 @@ void RobotController::reconfCallback(CoordinatedControllerConfig& config,
   dynamic_params.k_position = config.k_position;
   dynamic_params.k_aiming = config.k_aiming;
   dynamic_params.k_manip = config.k_manip;
+  dynamic_params.k_limits = config.k_limits;
 
   dynamic_params_.writeFromNonRT(dynamic_params);
 }

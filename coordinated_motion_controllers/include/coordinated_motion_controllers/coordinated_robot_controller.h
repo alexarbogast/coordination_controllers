@@ -61,6 +61,10 @@ private:
   // state
   KDL::JntArrayVel robot_state_;
 
+  // limits
+  KDL::JntArray limits_avg_;
+  KDL::JntArray limits_bounds_;
+
   // positioner
   realtime_tools::RealtimeBuffer<KDL::JntArrayVel> positioner_state_;
   ros::Subscriber sub_positioner_joint_states_;
@@ -81,6 +85,7 @@ private:
     double k_position;  // gain values
     double k_aiming;
     double k_manip;
+    double k_limits;
   };
   realtime_tools::RealtimeBuffer<DynamicParams> dynamic_params_;
 
