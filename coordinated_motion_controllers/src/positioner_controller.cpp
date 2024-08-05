@@ -81,16 +81,15 @@ bool PositionerController::init(hardware_interface::PositionJointInterface* hw,
 void PositionerController::update(const ros::Time& time,
                                   const ros::Duration& period)
 {
-  // temp
-  double cmd = 0.0;
+  Eigen::VectorXd cmd = Eigen::VectorXd::Zero(n_joints_);
   int n_coord = 0;
   for (auto& robot : robot_data_)
   {
     if (!robot.second->coord)
-      continue;
+       continue;
 
     auto robot_rec_cmd = robot.second->rec_setpoint.readFromRT();
-    cmd += robot_rec_cmd->data[0];
+    cmd += robot_rec_cmd->data;
     n_coord++;
   }
 
@@ -99,10 +98,13 @@ void PositionerController::update(const ros::Time& time,
     cmd /= n_coord;
   }
 
-  double new_position =
-      joint_handles_[0].getPosition() + (cmd * period.toSec());
-  joint_handles_[0].setCommand(new_position);
-  return;
+  //auto new_position = joint_h
+  double dt = period.toSec();
+  for (unsigned int i = 0; i < n_joints_; ++i)
+  {
+    auto new_position = joint_handles_[i].getPosition() + (cmd[i] * dt);
+    joint_handles_[i].setCommand(new_position);
+  }
 }
 
 void PositionerController::starting(const ros::Time&) {}

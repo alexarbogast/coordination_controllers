@@ -27,6 +27,7 @@ class PathVisualization(object):
         self.cylinder_marker.frame_locked = True
 
         self.reset_marker = Marker()
+        self.reset_marker.ns = marker_ns + "cylinder"
         self.reset_marker.header.stamp = rospy.Time()
         self.reset_marker.action = Marker.DELETEALL
 
