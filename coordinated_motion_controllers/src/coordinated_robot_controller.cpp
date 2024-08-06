@@ -62,7 +62,7 @@ bool CoordinatedRobotController::init(
   }
   if (!kdl_parser::treeFromUrdfModel(urdf_model, kdl_tree))
   {
-    ROS_FATAL("Failed to parse KDL tree from  urdf model");
+    ROS_FATAL("Failed to parse KDL tree from urdf model");
     return false;
   }
 
@@ -233,7 +233,7 @@ void CoordinatedRobotController::update(const ros::Time&,
   const Setpoint* setpoint = setpoint_.readFromRT();
 
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-  combined_positions.data << positioner_state_.readFromRT()->q.data,
+  combined_positions.data << positioner_state_.readFromRT()->q.data.reverse(),
       robot_state_.q.data;
 
   KDL::Jacobian rob_jac(n_robot_joints_);
@@ -313,19 +313,21 @@ void CoordinatedRobotController::update(const ros::Time&,
   Jr.block(3, 0, 2, n_robot_joints_) =
       rob_jac.data.block(3, 0, 2, n_robot_joints_);
 
-  Eigen::MatrixXd Jr_pinv =
-      Jr.transpose() *
-      (Jr * Jr.transpose() + params->alpha * params->alpha * identity5x5)
-          .inverse();
+  // Eigen::MatrixXd Jr_pinv =
+  //     Jr.transpose() *
+  //     (Jr * Jr.transpose() + params->alpha * params->alpha * identity5x5)
+  //         .inverse();
+  Eigen::MatrixXd Jr_pinv = Jr.transpose() * (Jr * Jr.transpose()).inverse();
 
   Eigen::MatrixXd Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
-  Jp.block(3, 0, 2, n_pos_joints_) = Eigen::Vector2d::Zero();
+  Jp.block(3, 0, 2, n_pos_joints_).setZero();
 
   Eigen::MatrixXd I =
       Eigen::MatrixXd::Identity(n_robot_joints_, n_robot_joints_);
   Eigen::VectorXd joint_cmd =
-      Jr_pinv * (cart_cmd - Jp * positioner_state_.readFromRT()->qdot.data) +
-      ((I - Jr_pinv * Jr) * manip_grad);
+      Jr_pinv * (cart_cmd -
+                 Jp * positioner_state_.readFromRT()->qdot.data.reverse()) +
+      ((I - Jr_pinv * Jr) * h);
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
@@ -335,12 +337,32 @@ void CoordinatedRobotController::update(const ros::Time&,
 
   /* desired positioner command */
   Eigen::VectorXd robot_qdot_attempt = (home_config_ - robot_state_.q.data);
-  //Eigen::VectorXd robot_qdot_attempt = manip_grad;
+  // Eigen::VectorXd robot_qdot_attempt = manip_grad;
 
-  Eigen::VectorXd pos_setpoint = (Jp.transpose() * Jp).inverse() *
-                                 Jp.transpose() *
-                                 (cart_cmd - Jr * robot_qdot_attempt);
+  Eigen::VectorXd combined_velocities(n_robot_joints_ + n_pos_joints_);
+  combined_velocities << positioner_state_.readFromRT()->qdot.data.reverse(),
+      joint_cmd;
 
+  Eigen::VectorXd cart_exec = coord_jac.data * combined_velocities;
+
+  // Eigen::MatrixXd Jpp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
+  // Jpp.block(3, 0, 3, n_pos_joints_).setZero();
+
+  // Eigen::MatrixXd Jrr =
+  //    coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
+  // Jrr.block(3, 0, 3, n_robot_joints_) = rob_jac.data.block(3, 0, 3,
+  // n_robot_joints_);
+
+  // Eigen::MatrixXd pinv = Jp.transpose() * (Jp * Jp.transpose()).inverse();
+  // Eigen::MatrixXd pinv = Jpp * Jpp.transpose()).inverse();
+
+  Eigen::MatrixXd pinv =
+      Jp.transpose() *
+      (Jp * Jp.transpose() + params->alpha * params->alpha * identity5x5)
+          .inverse();
+  Eigen::VectorXd pos_setpoint = pinv * (cart_cmd - Jr * robot_qdot_attempt);
+
+  pos_setpoint = pos_setpoint.reverse();
   if (positioner_setpoint_pub_->trylock())
   {
     Eigen::VectorXd::Map(&positioner_setpoint_pub_->msg_.velocity[0],
@@ -362,7 +384,7 @@ void CoordinatedRobotController::starting(const ros::Time&)
       Eigen::Matrix3d(init_pose_bf.M.Inverse().data) * aiming_vec_;
 
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-  combined_positions.data << positioner_state_.readFromRT()->q.data,
+  combined_positions.data << positioner_state_.readFromRT()->q.data.reverse(),
       robot_state_.q.data;
 
   KDL::Frame init_pose_pf;
@@ -446,7 +468,8 @@ bool CoordinatedRobotController::queryPoseService(
   }
 
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-  combined_positions.data << positioner_state_.readFromNonRT()->q.data,
+  combined_positions.data << positioner_state_.readFromNonRT()
+                                 ->q.data.reverse(),
       robot_state.data;
 
   KDL::Frame pose;
