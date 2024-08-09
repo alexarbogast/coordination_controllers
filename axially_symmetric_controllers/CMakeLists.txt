@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(coordinated_motion_controllers)
+project(axially_symmetric_controllers)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -12,10 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   urdf
   kdl_parser
-  eigen_conversions
   sensor_msgs
   coordinated_control_msgs
-  axially_symmetric_controllers
   hardware_interface
   controller_interface
   realtime_tools
@@ -25,6 +23,10 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Eigen3 REQUIRED)
 
+generate_dynamic_reconfigure_options(
+  cfg/AxiallySymmetricController.cfg
+)
+
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
@@ -32,10 +34,8 @@ catkin_package(
     roscpp
     urdf
     kdl_parser
-    eigen_conversions
     sensor_msgs
     coordinated_control_msgs
-    axially_symmetric_controllers
     hardware_interface
     controller_interface
     realtime_tools
@@ -50,16 +50,15 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME}
-  src/coordinated_robot_controller.cpp
-  src/positioner_controller.cpp
+  src/utility.cpp
+  src/nullspace_controller.cpp
+  src/twist_decomposition_controller.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen)
 add_dependencies(${PROJECT_NAME}
+  ${PROJECT_NAME}_gencfg
   ${catkin_EXPORTED_TARGETS}
 )
-
-add_executable(coordinated_motion_test src/test.cpp)
-target_link_libraries(coordinated_motion_test ${PROJECT_NAME} ${catkin_LIBRARIES})
 
 ## Installation
 install(DIRECTORY include/${PROJECT_NAME}/
@@ -72,6 +71,6 @@ install(TARGETS ${PROJECT_NAME}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(FILES coordinated_controller_plugins.xml
+install(FILES axially_symmetric_controller_plugins.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

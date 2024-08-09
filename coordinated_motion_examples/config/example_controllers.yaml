@@ -1,6 +1,6 @@
 rob1:
   task_space_controller:
-    type: coordinated_motion_controllers/RobotController
+    type: axially_symmetric_controllers/NullspaceController
     joints:
       - rob1_joint1
       - rob1_joint2
@@ -23,7 +23,7 @@ rob1:
     setpoint_topic: setpoint
 
   twist_decomposition_controller:
-    type: coordinated_motion_controllers/TwistDecompositionController
+    type: axially_symmetric_controllers/TwistDecompositionController
     joints:
       - rob1_joint1
       - rob1_joint2
@@ -85,7 +85,7 @@ rob1:
 
 rob2:
   task_space_controller:
-    type: coordinated_motion_controllers/RobotController
+    type: axially_symmetric_controllers/NullspaceController
     joints:
       - rob2_joint1
       - rob2_joint2

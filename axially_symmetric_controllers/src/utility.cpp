@@ -1,6 +1,6 @@
-#include <coordinated_motion_controllers/utility.h>
+#include <axially_symmetric_controllers/utility.h>
 
-namespace coordinated_motion_controllers
+namespace axially_symmetric_controllers
 {
 
 double angleBetween(const Eigen::Vector3d& v1, const Eigen::Vector3d& v2)
@@ -21,4 +21,4 @@ Eigen::Vector3d axisBetween(const Eigen::Vector3d& v1,
   return Eigen::Vector3d::Zero();
 }
 
-}  // namespace coordinated_motion_controllers
+}  // namespace axially_symmetric_controllers

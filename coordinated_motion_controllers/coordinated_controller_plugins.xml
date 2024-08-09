@@ -1,18 +1,4 @@
 <library path="lib/libcoordinated_motion_controllers">
-  <class name="coordinated_motion_controllers/RobotController"
-         type="coordinated_motion_controllers::RobotController"
-         base_class_type="controller_interface::ControllerBase">
-    <description>
-      Task-space controller that maximizes manipulability using null-space projection
-    </description>
-  </class>
-  <class name="coordinated_motion_controllers/TwistDecompositionController"
-         type="coordinated_motion_controllers::TwistDecompositionController"
-         base_class_type="controller_interface::ControllerBase">
-    <description>
-      Task-space controller that maximizes manipulability using twist decomposition
-    </description>
-  </class>
   <class name="coordinated_motion_controllers/CoordinatedRobotController"
          type="coordinated_motion_controllers::CoordinatedRobotController"
          base_class_type="controller_interface::ControllerBase">

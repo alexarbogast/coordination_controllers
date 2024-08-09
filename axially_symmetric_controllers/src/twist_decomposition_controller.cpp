@@ -1,5 +1,5 @@
-#include <coordinated_motion_controllers/twist_decomposition_controller.h>
-#include <coordinated_motion_controllers/utility.h>
+#include <axially_symmetric_controllers/twist_decomposition_controller.h>
+#include <axially_symmetric_controllers/utility.h>
 
 #include <urdf/model.h>
 #include <kdl/jntarray.hpp>
@@ -10,7 +10,7 @@
 
 #include <pluginlib/class_list_macros.h>
 
-namespace coordinated_motion_controllers
+namespace axially_symmetric_controllers
 {
 
 static const Eigen::Matrix<double, 5, 5> identity5x5 =
@@ -318,7 +318,7 @@ void TwistDecompositionController::setpointCallback(
 }
 
 void TwistDecompositionController::reconfCallback(
-    CoordinatedControllerConfig& config, uint16_t /*level*/)
+    AxiallySymmetricControllerConfig& config, uint16_t /*level*/)
 {
   DynamicParams dynamic_params;
   dynamic_params.alpha = config.alpha;
@@ -352,8 +352,8 @@ bool TwistDecompositionController::queryPoseService(
   return true;
 }
 
-}  // namespace coordinated_motion_controllers
+}  // namespace axially_symmetric_controllers
 
 PLUGINLIB_EXPORT_CLASS(
-    coordinated_motion_controllers::TwistDecompositionController,
+    axially_symmetric_controllers::TwistDecompositionController,
     controller_interface::ControllerBase)

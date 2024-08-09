@@ -1,5 +1,5 @@
-#include <coordinated_motion_controllers/robot_controller.h>
-#include <coordinated_motion_controllers/utility.h>
+#include <axially_symmetric_controllers/nullspace_controller.h>
+#include <axially_symmetric_controllers/utility.h>
 
 #include <urdf/model.h>
 #include <kdl/jntarray.hpp>
@@ -11,7 +11,7 @@
 
 #include <pluginlib/class_list_macros.h>
 
-namespace coordinated_motion_controllers
+namespace axially_symmetric_controllers
 {
 
 static const Eigen::Matrix<double, 5, 5> identity5x5 =
@@ -19,8 +19,8 @@ static const Eigen::Matrix<double, 5, 5> identity5x5 =
 
 static double MANIP_THRESHOLD = 1e-10;
 
-bool RobotController::init(hardware_interface::PositionJointInterface* hw,
-                           ros::NodeHandle& nh)
+bool NullspaceController::init(hardware_interface::PositionJointInterface* hw,
+                               ros::NodeHandle& nh)
 {
   const std::string ns = nh.getNamespace();
 
@@ -154,23 +154,23 @@ bool RobotController::init(hardware_interface::PositionJointInterface* hw,
   }
   aiming_vec_ = Eigen::Vector3d(aiming_vec.data());
 
-  sub_setpoint_ =
-      nh.subscribe(setpoint_topic, 1, &RobotController::setpointCallback, this);
+  sub_setpoint_ = nh.subscribe(setpoint_topic, 1,
+                               &NullspaceController::setpointCallback, this);
 
   // Dynamic reconfigure
   dyn_reconf_server_ = std::make_shared<ReconfigureServer>(nh);
-  dyn_reconf_server_->setCallback(std::bind(&RobotController::reconfCallback,
-                                            this, std::placeholders::_1,
-                                            std::placeholders::_2));
+  dyn_reconf_server_->setCallback(
+      std::bind(&NullspaceController::reconfCallback, this,
+                std::placeholders::_1, std::placeholders::_2));
 
   // Services
   query_pose_service_ = nh.advertiseService(
-      "query_pose", &RobotController::queryPoseService, this);
+      "query_pose", &NullspaceController::queryPoseService, this);
 
   return true;
 }
 
-void RobotController::update(const ros::Time&, const ros::Duration& period)
+void NullspaceController::update(const ros::Time&, const ros::Duration& period)
 {
   synchronizeJointStates();  // update state
 
@@ -261,7 +261,7 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
   }
 }
 
-void RobotController::starting(const ros::Time&)
+void NullspaceController::starting(const ros::Time&)
 {
   synchronizeJointStates();
 
@@ -277,9 +277,9 @@ void RobotController::starting(const ros::Time&)
   setpoint_.initRT(init_setpoint);
 }
 
-void RobotController::stopping(const ros::Time&) {}
+void NullspaceController::stopping(const ros::Time&) {}
 
-void RobotController::synchronizeJointStates()
+void NullspaceController::synchronizeJointStates()
 {
   // Synchronize the internal state with the hardware
   for (unsigned int i = 0; i < n_joints_; ++i)
@@ -289,7 +289,7 @@ void RobotController::synchronizeJointStates()
   }
 }
 
-void RobotController::setpointCallback(
+void NullspaceController::setpointCallback(
     const coordinated_control_msgs::RobotSetpointConstPtr& msg)
 {
   AxiallySymmetricSetpoint new_setpoint;
@@ -309,8 +309,8 @@ void RobotController::setpointCallback(
   setpoint_.writeFromNonRT(new_setpoint);
 }
 
-void RobotController::reconfCallback(CoordinatedControllerConfig& config,
-                                     uint16_t /*level*/)
+void NullspaceController::reconfCallback(
+    AxiallySymmetricControllerConfig& config, uint16_t /*level*/)
 {
   DynamicParams dynamic_params;
   dynamic_params.alpha = config.alpha;
@@ -322,7 +322,7 @@ void RobotController::reconfCallback(CoordinatedControllerConfig& config,
   dynamic_params_.writeFromNonRT(dynamic_params);
 }
 
-bool RobotController::queryPoseService(
+bool NullspaceController::queryPoseService(
     coordinated_control_msgs::QueryPose::Request& req,
     coordinated_control_msgs::QueryPose::Response& resp)
 {
@@ -344,7 +344,7 @@ bool RobotController::queryPoseService(
   return true;
 }
 
-}  // namespace coordinated_motion_controllers
+}  // namespace axially_symmetric_controllers
 
-PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::RobotController,
+PLUGINLIB_EXPORT_CLASS(axially_symmetric_controllers::NullspaceController,
                        controller_interface::ControllerBase)

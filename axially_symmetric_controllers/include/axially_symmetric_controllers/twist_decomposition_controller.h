@@ -1,26 +1,28 @@
 #pragma once
 
-#include <coordinated_motion_controllers/setpoint.h>
+#include <axially_symmetric_controllers/setpoint.h>
 
 #include <kdl/chainjnttojacsolver.hpp>
 #include <kdl/chainjnttojacdotsolver.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/jntarrayvel.hpp>
+#include <kdl/frames.hpp>
 
-#include <coordinated_control_msgs/RobotSetpoint.h>
+#include <coordinated_control_msgs/TwistDecompositionSetpoint.h>
 #include <coordinated_control_msgs/QueryPose.h>
 #include <realtime_tools/realtime_buffer.h>
 #include <dynamic_reconfigure/server.h>
-#include <coordinated_motion_controllers/CoordinatedControllerConfig.h>
+#include <axially_symmetric_controllers/AxiallySymmetricControllerConfig.h>
 
 #include <controller_interface/controller.h>
 #include <hardware_interface/joint_command_interface.h>
 
-namespace coordinated_motion_controllers
+namespace axially_symmetric_controllers
 {
 
-class RobotController : public controller_interface::Controller<
-                            hardware_interface::PositionJointInterface>
+class TwistDecompositionController
+  : public controller_interface::Controller<
+        hardware_interface::PositionJointInterface>
 {
 public:
   virtual bool init(hardware_interface::PositionJointInterface* hw,
@@ -32,9 +34,10 @@ public:
 private:
   void synchronizeJointStates();
 
-  void reconfCallback(CoordinatedControllerConfig& config, uint16_t /*level*/);
-  void
-  setpointCallback(const coordinated_control_msgs::RobotSetpointConstPtr& msg);
+  void reconfCallback(AxiallySymmetricControllerConfig& config,
+                      uint16_t /*level*/);
+  void setpointCallback(
+      const coordinated_control_msgs::TwistDecompositionSetpointConstPtr& msg);
   bool queryPoseService(coordinated_control_msgs::QueryPose::Request& req,
                         coordinated_control_msgs::QueryPose::Response& resp);
 
@@ -59,7 +62,7 @@ private:
   KDL::JntArray limits_bounds_;
 
   // setpoint
-  realtime_tools::RealtimeBuffer<AxiallySymmetricSetpoint> setpoint_;
+  realtime_tools::RealtimeBuffer<TwistDecompositionSetpoint> setpoint_;
   ros::Subscriber sub_setpoint_;
 
   // dynamic reconfigure
@@ -75,11 +78,11 @@ private:
   };
   realtime_tools::RealtimeBuffer<DynamicParams> dynamic_params_;
 
-  typedef dynamic_reconfigure::Server<CoordinatedControllerConfig>
+  typedef dynamic_reconfigure::Server<AxiallySymmetricControllerConfig>
       ReconfigureServer;
   std::shared_ptr<ReconfigureServer> dyn_reconf_server_;
 
   ros::ServiceServer query_pose_service_;
 };
 
-}  // namespace coordinated_motion_controllers
+}  // namespace axially_symmetric_controllers

@@ -1,5 +1,5 @@
 #include <coordinated_motion_controllers/coordinated_robot_controller.h>
-#include <coordinated_motion_controllers/utility.h>
+#include <axially_symmetric_controllers/utility.h>
 
 #include <urdf/model.h>
 #include <kdl/jntarrayvel.hpp>
@@ -230,7 +230,8 @@ void CoordinatedRobotController::update(const ros::Time&,
   synchronizeJointStates();  // update state
 
   const DynamicParams* params = dynamic_params_.readFromRT();
-  const AxiallySymmetricSetpoint* setpoint = setpoint_.readFromRT();
+  const axially_symmetric_controllers::AxiallySymmetricSetpoint* setpoint =
+      setpoint_.readFromRT();
 
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
   combined_positions.data << positioner_state_.readFromRT()->q.data.reverse(),
@@ -249,8 +250,10 @@ void CoordinatedRobotController::update(const ros::Time&,
   Eigen::Vector3d aiming_bf =
       Eigen::Matrix3d(pose_bf.M.Inverse().data) * aiming_vec_;
 
-  Eigen::Vector3d rot_axis = axisBetween(aiming_bf, setpoint->aiming);
-  double rot_angle = angleBetween(aiming_bf, setpoint->aiming);
+  Eigen::Vector3d rot_axis =
+      axially_symmetric_controllers::axisBetween(aiming_bf, setpoint->aiming);
+  double rot_angle =
+      axially_symmetric_controllers::angleBetween(aiming_bf, setpoint->aiming);
 
   Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
   orient_error *= rot_angle;
@@ -378,7 +381,7 @@ void CoordinatedRobotController::starting(const ros::Time&)
   KDL::Frame init_pose_bf;
   robot_fk_solver_->JntToCart(robot_state_.q, init_pose_bf);
 
-  AxiallySymmetricSetpoint init_setpoint;
+  axially_symmetric_controllers::AxiallySymmetricSetpoint init_setpoint;
   init_setpoint.velocity = Eigen::Vector3d::Zero();
   init_setpoint.aiming =
       Eigen::Matrix3d(init_pose_bf.M.Inverse().data) * aiming_vec_;
@@ -427,7 +430,7 @@ void CoordinatedRobotController::posJointStateCallback(
 void CoordinatedRobotController::setpointCallback(
     const coordinated_control_msgs::RobotSetpointConstPtr& msg)
 {
-  AxiallySymmetricSetpoint new_setpoint;
+  axially_symmetric_controllers::AxiallySymmetricSetpoint new_setpoint;
   // clang-format off
   new_setpoint.position << msg->pose.position.x,
                            msg->pose.position.y,
@@ -445,7 +448,8 @@ void CoordinatedRobotController::setpointCallback(
 }
 
 void CoordinatedRobotController::reconfCallback(
-    CoordinatedControllerConfig& config, uint16_t /*level*/)
+    axially_symmetric_controllers::AxiallySymmetricControllerConfig& config,
+    uint16_t /*level*/)
 {
   DynamicParams dynamic_params;
   dynamic_params.alpha = config.alpha;

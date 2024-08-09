@@ -3,7 +3,7 @@
 #include <Eigen/Dense>
 #include <kdl/frames.hpp>
 
-namespace coordinated_motion_controllers
+namespace axially_symmetric_controllers
 {
 
 struct AxiallySymmetricSetpoint
@@ -31,4 +31,4 @@ struct TwistDecompositionSetpoint
   Eigen::Vector3d velocity;
 };
 
-}  // namespace coordinated_motion_controllers
+}  // namespace axially_symmetric_controllers

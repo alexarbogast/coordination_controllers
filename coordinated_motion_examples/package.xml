@@ -17,6 +17,7 @@
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>axially_symmetric_controllers</exec_depend>
   <exec_depend>coordinated_motion_controllers</exec_depend>
   <depend>roscpp</depend>
   <depend>rospy</depend>

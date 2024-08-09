@@ -2,7 +2,7 @@
 
 #include <Eigen/Dense>
 
-namespace coordinated_motion_controllers
+namespace axially_symmetric_controllers
 {
 
 /**
@@ -31,4 +31,4 @@ double angleBetween(const Eigen::Vector3d& v1, const Eigen::Vector3d& v2);
 Eigen::Vector3d axisBetween(const Eigen::Vector3d& v1,
                             const Eigen::Vector3d& v2, double tol = 1e-5);
 
-}  // namespace coordinated_motion_controllers
+}  // namespace axially_symmetric_controllers

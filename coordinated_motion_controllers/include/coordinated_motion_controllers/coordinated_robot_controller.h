@@ -1,6 +1,6 @@
 #pragma once
 
-#include <coordinated_motion_controllers/setpoint.h>
+#include <axially_symmetric_controllers/setpoint.h>
 
 #include <kdl/chainjnttojacsolver.hpp>
 #include <kdl/chainjnttojacdotsolver.hpp>
@@ -14,7 +14,7 @@
 #include <realtime_tools/realtime_buffer.h>
 #include <realtime_tools/realtime_publisher.h>
 #include <dynamic_reconfigure/server.h>
-#include <coordinated_motion_controllers/CoordinatedControllerConfig.h>
+#include <axially_symmetric_controllers/AxiallySymmetricControllerConfig.h>
 
 #include <controller_interface/controller.h>
 #include <hardware_interface/joint_command_interface.h>
@@ -36,7 +36,9 @@ public:
 private:
   void synchronizeJointStates();
 
-  void reconfCallback(CoordinatedControllerConfig& config, uint16_t /*level*/);
+  void reconfCallback(
+      axially_symmetric_controllers::AxiallySymmetricControllerConfig& config,
+      uint16_t /*level*/);
   void posJointStateCallback(const sensor_msgs::JointStateConstPtr& msg);
   void
   setpointCallback(const coordinated_control_msgs::RobotSetpointConstPtr& msg);
@@ -74,7 +76,9 @@ private:
       positioner_setpoint_pub_;
 
   // setpoint
-  realtime_tools::RealtimeBuffer<AxiallySymmetricSetpoint> setpoint_;
+  realtime_tools::RealtimeBuffer<
+      axially_symmetric_controllers::AxiallySymmetricSetpoint>
+      setpoint_;
   ros::Subscriber sub_setpoint_;
 
   // dynamic reconfigure
@@ -90,7 +94,8 @@ private:
   };
   realtime_tools::RealtimeBuffer<DynamicParams> dynamic_params_;
 
-  typedef dynamic_reconfigure::Server<CoordinatedControllerConfig>
+  typedef dynamic_reconfigure::Server<
+      axially_symmetric_controllers::AxiallySymmetricControllerConfig>
       ReconfigureServer;
   std::shared_ptr<ReconfigureServer> dyn_reconf_server_;
 
