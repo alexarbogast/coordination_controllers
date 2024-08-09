@@ -1,4 +1,4 @@
-#include <coordinated_motion_controllers/robot_controller.h>
+#include <coordinated_motion_controllers/twist_decomposition_controller.h>
 #include <coordinated_motion_controllers/utility.h>
 
 #include <urdf/model.h>
@@ -6,7 +6,6 @@
 #include <kdl/jntarrayvel.hpp>
 #include <kdl/tree.hpp>
 #include <kdl/jacobian.hpp>
-#include <kdl/frames.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 
 #include <pluginlib/class_list_macros.h>
@@ -19,8 +18,8 @@ static const Eigen::Matrix<double, 5, 5> identity5x5 =
 
 static double MANIP_THRESHOLD = 1e-10;
 
-bool RobotController::init(hardware_interface::PositionJointInterface* hw,
-                           ros::NodeHandle& nh)
+bool TwistDecompositionController::init(
+    hardware_interface::PositionJointInterface* hw, ros::NodeHandle& nh)
 {
   const std::string ns = nh.getNamespace();
 
@@ -154,28 +153,29 @@ bool RobotController::init(hardware_interface::PositionJointInterface* hw,
   }
   aiming_vec_ = Eigen::Vector3d(aiming_vec.data());
 
-  sub_setpoint_ =
-      nh.subscribe(setpoint_topic, 1, &RobotController::setpointCallback, this);
+  sub_setpoint_ = nh.subscribe(
+      setpoint_topic, 1, &TwistDecompositionController::setpointCallback, this);
 
   // Dynamic reconfigure
   dyn_reconf_server_ = std::make_shared<ReconfigureServer>(nh);
-  dyn_reconf_server_->setCallback(std::bind(&RobotController::reconfCallback,
-                                            this, std::placeholders::_1,
-                                            std::placeholders::_2));
+  dyn_reconf_server_->setCallback(
+      std::bind(&TwistDecompositionController::reconfCallback, this,
+                std::placeholders::_1, std::placeholders::_2));
 
   // Services
   query_pose_service_ = nh.advertiseService(
-      "query_pose", &RobotController::queryPoseService, this);
+      "query_pose", &TwistDecompositionController::queryPoseService, this);
 
   return true;
 }
 
-void RobotController::update(const ros::Time&, const ros::Duration& period)
+void TwistDecompositionController::update(const ros::Time&,
+                                          const ros::Duration& period)
 {
   synchronizeJointStates();  // update state
 
   const DynamicParams* params = dynamic_params_.readFromRT();
-  const AxiallySymmetricSetpoint* setpoint = setpoint_.readFromRT();
+  const TwistDecompositionSetpoint* setpoint = setpoint_.readFromRT();
 
   KDL::Jacobian jac(n_joints_);
   robot_jacobian_solver_->JntToJac(robot_state_.q, jac);
@@ -183,18 +183,31 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
   KDL::Frame pose;
   robot_fk_solver_->JntToCart(robot_state_.q, pose);
 
-  /* orientation error */
-  Eigen::Vector3d aiming_bf =
-      Eigen::Matrix3d(pose.M.Inverse().data) * aiming_vec_;
+  /* error */
+  KDL::Frame frame_error;
+  frame_error.p = setpoint->pose.p - pose.p;
+  frame_error.M = setpoint->pose.M * pose.M.Inverse();
 
-  Eigen::Vector3d rot_axis = axisBetween(aiming_bf, setpoint->aiming);
-  double rot_angle = angleBetween(aiming_bf, setpoint->aiming);
+  KDL::Vector rot_axis = KDL::Vector::Zero();
+  double rot_angle = frame_error.M.GetRotAngle(rot_axis);
 
-  Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
-  orient_error *= rot_angle;
+  Eigen::Vector3d pos_error(frame_error.p.data);
+  // Eigen::Vector3d rot_error((rot_angle * rot_axis).data);
 
-  /* position error */
-  Eigen::Vector3d pos_error = setpoint->position - Eigen::Vector3d(pose.p.data);
+  // temp rotation error
+  Eigen::Quaterniond current_q;
+  pose.M.GetQuaternion(current_q.x(), current_q.y(), current_q.z(),
+                       current_q.w());
+
+  Eigen::Quaterniond setpoint_q;
+  setpoint->pose.M.GetQuaternion(setpoint_q.x(), setpoint_q.y(), setpoint_q.z(),
+                                 setpoint_q.w());
+
+  Eigen::Vector3d rot_error = (setpoint_q * current_q.inverse()).vec();
+
+  Eigen::Matrix<double, 6, 1> cart_cmd;
+  cart_cmd << params->k_position * pos_error + setpoint->velocity,
+      params->k_aiming * rot_error;
 
   /* redundancy resolution */
   // manipulability maximization
@@ -240,19 +253,24 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
       (lambda.array() * qd_lim.array()) +
       ((1 - lambda.array()) * q_manip.array());  // secondary task command
 
+  /* task decomposition */
+  Eigen::Vector3d e(pose.M.UnitZ().data);
+  Eigen::Matrix3d eeT = e * e.transpose();
+
+  Eigen::Matrix<double, 6, 6> T = Eigen::Matrix<double, 6, 6>::Zero();
+  T.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+  T.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity() - eeT;
+
+  Eigen::Vector3d perp_cmd = eeT * jac.data.block(3, 0, 3, n_joints_) * h;
+
   /* control */
-  Eigen::Matrix<double, 5, 1> cart_cmd;
-  cart_cmd << params->k_position * pos_error + setpoint->velocity,
-      params->k_aiming * orient_error;
+  Eigen::MatrixXd Jr = jac.data;
+  Eigen::MatrixXd Jr_pinv = Jr.transpose() * (Jr * Jr.transpose()).inverse();
 
-  Eigen::MatrixXd Jr = jac.data.block(0, 0, 5, n_joints_);
-  Eigen::MatrixXd Jr_pinv =
-      Jr.transpose() *
-      (Jr * Jr.transpose() + params->alpha * params->alpha * identity5x5)
-          .inverse();
+  Eigen::Matrix<double, 6, 1> mod_cart_cmd = T * cart_cmd;
+  mod_cart_cmd.block<3, 1>(3, 0) += perp_cmd;
 
-  Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n_joints_, n_joints_);
-  Eigen::VectorXd joint_cmd = Jr_pinv * cart_cmd + ((I - Jr_pinv * Jr) * h);
+  Eigen::VectorXd joint_cmd = Jr_pinv * mod_cart_cmd;
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_joints_; ++i)
@@ -261,25 +279,19 @@ void RobotController::update(const ros::Time&, const ros::Duration& period)
   }
 }
 
-void RobotController::starting(const ros::Time&)
+void TwistDecompositionController::starting(const ros::Time&)
 {
   synchronizeJointStates();
 
-  KDL::Frame init_pose_bf;
-  robot_fk_solver_->JntToCart(robot_state_.q, init_pose_bf);
-
-  AxiallySymmetricSetpoint init_setpoint;
+  TwistDecompositionSetpoint init_setpoint;
+  robot_fk_solver_->JntToCart(robot_state_.q, init_setpoint.pose);
   init_setpoint.velocity = Eigen::Vector3d::Zero();
-  init_setpoint.aiming =
-      Eigen::Matrix3d(init_pose_bf.M.Inverse().data) * aiming_vec_;
-  init_setpoint.position = Eigen::Vector3d(init_pose_bf.p.data);
-
   setpoint_.initRT(init_setpoint);
 }
 
-void RobotController::stopping(const ros::Time&) {}
+void TwistDecompositionController::stopping(const ros::Time&) {}
 
-void RobotController::synchronizeJointStates()
+void TwistDecompositionController::synchronizeJointStates()
 {
   // Synchronize the internal state with the hardware
   for (unsigned int i = 0; i < n_joints_; ++i)
@@ -289,28 +301,24 @@ void RobotController::synchronizeJointStates()
   }
 }
 
-void RobotController::setpointCallback(
-    const coordinated_control_msgs::RobotSetpointConstPtr& msg)
+void TwistDecompositionController::setpointCallback(
+    const coordinated_control_msgs::TwistDecompositionSetpointConstPtr& msg)
 {
-  AxiallySymmetricSetpoint new_setpoint;
-  // clang-format off
-  new_setpoint.position << msg->pose.position.x,
-                           msg->pose.position.y,
-                           msg->pose.position.z;
+  TwistDecompositionSetpoint setpoint;
 
-  new_setpoint.aiming << msg->pose.aiming.x,
-                         msg->pose.aiming.y,
-                         msg->pose.aiming.z;
+  setpoint.pose.p = KDL::Vector(msg->pose.position.x, msg->pose.position.y,
+                                msg->pose.position.z);
+  setpoint.pose.M = KDL::Rotation::Quaternion(
+      msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z,
+      msg->pose.orientation.w);
 
-  new_setpoint.velocity << msg->velocity.x,
-                           msg->velocity.y,
-                           msg->velocity.z;
-  // clang-format on
-  setpoint_.writeFromNonRT(new_setpoint);
+  setpoint.velocity << msg->velocity.x, msg->velocity.y, msg->velocity.z;
+
+  setpoint_.writeFromNonRT(setpoint);
 }
 
-void RobotController::reconfCallback(CoordinatedControllerConfig& config,
-                                     uint16_t /*level*/)
+void TwistDecompositionController::reconfCallback(
+    CoordinatedControllerConfig& config, uint16_t /*level*/)
 {
   DynamicParams dynamic_params;
   dynamic_params.alpha = config.alpha;
@@ -322,7 +330,7 @@ void RobotController::reconfCallback(CoordinatedControllerConfig& config,
   dynamic_params_.writeFromNonRT(dynamic_params);
 }
 
-bool RobotController::queryPoseService(
+bool TwistDecompositionController::queryPoseService(
     coordinated_control_msgs::QueryPose::Request& req,
     coordinated_control_msgs::QueryPose::Response& resp)
 {
@@ -346,5 +354,6 @@ bool RobotController::queryPoseService(
 
 }  // namespace coordinated_motion_controllers
 
-PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::RobotController,
-                       controller_interface::ControllerBase)
+PLUGINLIB_EXPORT_CLASS(
+    coordinated_motion_controllers::TwistDecompositionController,
+    controller_interface::ControllerBase)

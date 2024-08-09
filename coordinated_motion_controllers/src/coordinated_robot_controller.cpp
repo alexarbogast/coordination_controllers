@@ -230,7 +230,7 @@ void CoordinatedRobotController::update(const ros::Time&,
   synchronizeJointStates();  // update state
 
   const DynamicParams* params = dynamic_params_.readFromRT();
-  const Setpoint* setpoint = setpoint_.readFromRT();
+  const AxiallySymmetricSetpoint* setpoint = setpoint_.readFromRT();
 
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
   combined_positions.data << positioner_state_.readFromRT()->q.data.reverse(),
@@ -378,7 +378,7 @@ void CoordinatedRobotController::starting(const ros::Time&)
   KDL::Frame init_pose_bf;
   robot_fk_solver_->JntToCart(robot_state_.q, init_pose_bf);
 
-  Setpoint init_setpoint;
+  AxiallySymmetricSetpoint init_setpoint;
   init_setpoint.velocity = Eigen::Vector3d::Zero();
   init_setpoint.aiming =
       Eigen::Matrix3d(init_pose_bf.M.Inverse().data) * aiming_vec_;
@@ -427,7 +427,7 @@ void CoordinatedRobotController::posJointStateCallback(
 void CoordinatedRobotController::setpointCallback(
     const coordinated_control_msgs::RobotSetpointConstPtr& msg)
 {
-  Setpoint new_setpoint;
+  AxiallySymmetricSetpoint new_setpoint;
   // clang-format off
   new_setpoint.position << msg->pose.position.x,
                            msg->pose.position.y,

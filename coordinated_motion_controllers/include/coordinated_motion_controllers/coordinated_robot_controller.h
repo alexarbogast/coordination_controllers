@@ -74,7 +74,7 @@ private:
       positioner_setpoint_pub_;
 
   // setpoint
-  realtime_tools::RealtimeBuffer<Setpoint> setpoint_;
+  realtime_tools::RealtimeBuffer<AxiallySymmetricSetpoint> setpoint_;
   ros::Subscriber sub_setpoint_;
 
   // dynamic reconfigure

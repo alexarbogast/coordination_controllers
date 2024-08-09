@@ -13,6 +13,7 @@ add_message_files(
     AxiallySymmetricPose.msg
     RobotSetpoint.msg
     PositionerSetpoint.msg
+    TwistDecompositionSetpoint.msg
 )
 
 add_service_files(

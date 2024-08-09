@@ -22,6 +22,29 @@ rob1:
 
     setpoint_topic: setpoint
 
+  twist_decomposition_controller:
+    type: coordinated_motion_controllers/TwistDecompositionController
+    joints:
+      - rob1_joint1
+      - rob1_joint2
+      - rob1_joint3
+      - rob1_joint4
+      - rob1_joint5
+      - rob1_joint6
+
+    alpha: 0.0
+    k_position: 10.0
+    k_aiming: 10.0
+    k_manip: 5.0
+    k_limits: 10.0
+
+    aiming_vec: [0.0, 0.0, -1.0]
+
+    base_link: rob1_base_link
+    eef_link: rob1_tool0
+
+    setpoint_topic: setpoint
+
   coordinated_motion_controller:
     type: coordinated_motion_controllers/CoordinatedRobotController
     joints:

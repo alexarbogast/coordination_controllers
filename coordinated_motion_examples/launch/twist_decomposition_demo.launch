@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+  <group ns="rob1">
+    <node pkg="coordinated_motion_examples" type="twist_decomposition_demo.py" name="twist_decomposition_client" output="screen"/>
+  </group>
+
+</launch>

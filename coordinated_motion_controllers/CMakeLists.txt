@@ -54,6 +54,7 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/utility.cpp
   src/robot_controller.cpp
+  src/twist_decomposition_controller.cpp
   src/coordinated_robot_controller.cpp 
   src/positioner_controller.cpp
 )
