@@ -46,7 +46,7 @@ rob1:
     setpoint_topic: setpoint
 
   coordinated_motion_controller:
-    type: coordinated_motion_controllers/CoordinatedRobotController
+    type: coordinated_motion_controllers/CoordinatedNullspaceController
     joints:
       - rob1_joint1
       - rob1_joint2
@@ -55,7 +55,7 @@ rob1:
       - rob1_joint5
       - rob1_joint6
 
-    alpha: 0.0
+    alpha: 0.1
     k_position: 10.0
     k_aiming: 10.0
     k_manip: 5.0
@@ -108,7 +108,7 @@ rob2:
     setpoint_topic: setpoint
 
   coordinated_motion_controller:
-    type: coordinated_motion_controllers/CoordinatedRobotController
+    type: coordinated_motion_controllers/CoordinatedNullspaceController
     joints:
       - rob2_joint1
       - rob2_joint2
@@ -117,7 +117,7 @@ rob2:
       - rob2_joint5
       - rob2_joint6
 
-    alpha: 0.0
+    alpha: 0.1
     k_position: 10.0
     k_aiming: 10.0
     k_manip: 5.0

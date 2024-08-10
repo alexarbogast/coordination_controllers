@@ -2,11 +2,17 @@ import numpy as np
 import rospy
 
 from geometry_msgs.msg import Vector3
-from coordinated_control_msgs.msg import RobotSetpoint
 from std_msgs.msg import ColorRGBA
+from coordinated_control_msgs.msg import RobotSetpoint
 
-from coordinated_motion_examples import PathVisualization, CoordinatedMotionClient
+from coordinated_motion_examples import (
+    ControllerClient,
+    JointControllerClient,
+    ControllerManagerClient,
+    PathVisualization,
+)
 
+NS = "rob1"
 LINEAR_VELOCITY = 0.300
 
 
@@ -17,7 +23,7 @@ def linear_path(start, end, vel):
     dur = path_len / vel
 
     f = lambda t: start + t * diff
-    f_dot = lambda t: vel * u
+    f_dot = lambda _: vel * u
     return f, f_dot, dur
 
 
@@ -42,73 +48,25 @@ def hypotrochoid(scaling):
 
 class CoordinatedMotionDemo:
     def __init__(self):
-        self.motion_client = CoordinatedMotionClient()
-        self.path_viz = PathVisualization(
-            0.007, ColorRGBA(244 / 255, 96 / 255, 54 / 255, 0.8), "rob1"
+        self.controller_client = ControllerClient("coordinated_motion_controller")
+        self.joint_controller_client = JointControllerClient(
+            "joint_trajectory_controller"
         )
 
-        self.home = [
-            -0.3682676987777704,
-            -0.845456854726745,
-            1.8581698861744447,
-            0.5580733655537403,
-            1.5707974618414442,
-            0.18855996186926843,
-        ]
+        self.controller_manager_client = ControllerManagerClient()
+        self.path_viz = PathVisualization(0.007, ColorRGBA(0.96, 0.38, 0.21, 1.0), NS)
+
+        self.home = [-0.368, -0.845, 1.858, 0.558, 1.571, 0.189]
 
     def run(self):
-        self.motion_client.start_joint_control()
-        self.motion_client.move_joint(self.home, 1.0)
+        self.start_joint_control()
+        self.joint_controller_client.move_joint(self.home, 1.0)
 
-        self.motion_client.start_base_frame_control()
-        self.base_frame_hypotrochoid()
-
-        self.motion_client.start_coordinated_control()
+        self.start_coordinated_control()
         self.coordinated_hypotrochoid()
 
-        self.motion_client.start_joint_control()
-        self.motion_client.move_joint(self.home, 1.0)
-
-    def base_frame_hypotrochoid(self):
-        scaling = 1 / 25
-        offset = np.array([0.5, 0.0, 0.1])
-        tt = np.linspace(0, 6 * np.pi, 1000)
-        f, f_dot = hypotrochoid(scaling)
-
-        self.path_viz.visualize_path(
-            [f(t) + offset for t in np.linspace(0, 6 * np.pi, 500)],
-            "rob1_base_link",
-        )
-
-        rate = rospy.Rate(100)
-        setpoint = RobotSetpoint()
-        setpoint.pose.aiming = Vector3(0.0, 0.0, 1.0)
-
-        # travel to start
-        pose = self.motion_client.get_pose()
-        current_position = np.array([pose.position.x, pose.position.y, pose.position.z])
-        init_path_p = f(tt[0]) + offset
-
-        g, g_dot, dur = linear_path(current_position, init_path_p, LINEAR_VELOCITY)
-        for t in np.linspace(0, 1, int(dur * 100)):
-            gt = g(t)
-            g_dott = g_dot(t)
-            setpoint.pose.position = Vector3(gt[0], gt[1], gt[2])
-            setpoint.velocity = Vector3(g_dott[0], g_dott[1], g_dott[2])
-            self.motion_client.publish_setpoint(setpoint)
-            rate.sleep()
-
-        # follow path
-        for t in tt:
-            ft = f(t) + offset
-            f_dott = f_dot(t)
-
-            setpoint.pose.position = Vector3(ft[0], ft[1], ft[2])
-            setpoint.velocity = Vector3(f_dott[0], f_dott[1], f_dott[2])
-            self.motion_client.publish_setpoint(setpoint)
-            rate.sleep()
-
-        self.path_viz.reset()
+        self.start_joint_control()
+        self.joint_controller_client.move_joint(self.home, 1.0)
 
     def coordinated_hypotrochoid(self):
         scaling = 1 / 25
@@ -126,7 +84,9 @@ class CoordinatedMotionDemo:
         setpoint.pose.aiming = Vector3(0.0, 0.0, 1.0)
 
         # travel to start
-        pose = self.motion_client.get_pose()
+        pose = self.controller_client.get_pose()
+        if pose is None:
+            return
         current_position = np.array([pose.position.x, pose.position.y, pose.position.z])
         init_path_p = f(tt[0]) + offset
 
@@ -136,7 +96,7 @@ class CoordinatedMotionDemo:
             g_dott = g_dot(t)
             setpoint.pose.position = Vector3(gt[0], gt[1], gt[2])
             setpoint.velocity = Vector3(g_dott[0], g_dott[1], g_dott[2])
-            self.motion_client.publish_setpoint(setpoint)
+            self.controller_client.publish_setpoint(setpoint)
             rate.sleep()
 
         # follow path
@@ -146,10 +106,20 @@ class CoordinatedMotionDemo:
 
             setpoint.pose.position = Vector3(ft[0], ft[1], ft[2])
             setpoint.velocity = Vector3(f_dott[0], f_dott[1], f_dott[2])
-            self.motion_client.publish_setpoint(setpoint)
+            self.controller_client.publish_setpoint(setpoint)
             rate.sleep()
 
         self.path_viz.reset()
+
+    def start_joint_control(self):
+        self.controller_manager_client.switch_controller(
+            [self.joint_controller_client.name], [self.controller_client.name]
+        )
+
+    def start_coordinated_control(self):
+        self.controller_manager_client.switch_controller(
+            [self.controller_client.name], [self.joint_controller_client.name]
+        )
 
 
 if __name__ == "__main__":

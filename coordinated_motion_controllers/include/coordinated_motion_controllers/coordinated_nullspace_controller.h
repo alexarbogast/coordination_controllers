@@ -22,7 +22,7 @@
 namespace coordinated_motion_controllers
 {
 
-class CoordinatedRobotController
+class CoordinatedNullspaceController
   : public controller_interface::Controller<
         hardware_interface::PositionJointInterface>
 {

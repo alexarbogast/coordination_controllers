@@ -1,4 +1,4 @@
-#include <coordinated_motion_controllers/coordinated_robot_controller.h>
+#include <coordinated_motion_controllers/coordinated_nullspace_controller.h>
 #include <axially_symmetric_controllers/utility.h>
 
 #include <urdf/model.h>
@@ -20,7 +20,7 @@ static const double MANIP_THRESHOLD = 1e-6;
 
 static const std::string POS_SETPOINT_NS = "pos_setpoint";
 
-bool CoordinatedRobotController::init(
+bool CoordinatedNullspaceController::init(
     hardware_interface::PositionJointInterface* hw, ros::NodeHandle& nh)
 {
   const std::string ns = nh.getNamespace();
@@ -201,10 +201,10 @@ bool CoordinatedRobotController::init(
   // Setup ROS components
   sub_positioner_joint_states_ =
       nh.subscribe(positioner_topic, 1,
-                   &CoordinatedRobotController::posJointStateCallback, this);
+                   &CoordinatedNullspaceController::posJointStateCallback, this);
 
   sub_setpoint_ = nh.subscribe(
-      setpoint_topic, 1, &CoordinatedRobotController::setpointCallback, this);
+      setpoint_topic, 1, &CoordinatedNullspaceController::setpointCallback, this);
 
   positioner_setpoint_pub_ = std::make_unique<realtime_tools::RealtimePublisher<
       coordinated_control_msgs::PositionerSetpoint>>(nh, POS_SETPOINT_NS, 1);
@@ -214,17 +214,17 @@ bool CoordinatedRobotController::init(
   // Dynamic reconfigure
   dyn_reconf_server_ = std::make_shared<ReconfigureServer>(nh);
   dyn_reconf_server_->setCallback(
-      std::bind(&CoordinatedRobotController::reconfCallback, this,
+      std::bind(&CoordinatedNullspaceController::reconfCallback, this,
                 std::placeholders::_1, std::placeholders::_2));
 
   // Services
   query_pose_service_ = nh.advertiseService(
-      "query_pose", &CoordinatedRobotController::queryPoseService, this);
+      "query_pose", &CoordinatedNullspaceController::queryPoseService, this);
 
   return true;
 }
 
-void CoordinatedRobotController::update(const ros::Time&,
+void CoordinatedNullspaceController::update(const ros::Time&,
                                         const ros::Duration& period)
 {
   synchronizeJointStates();  // update state
@@ -374,7 +374,7 @@ void CoordinatedRobotController::update(const ros::Time&,
   }
 }
 
-void CoordinatedRobotController::starting(const ros::Time&)
+void CoordinatedNullspaceController::starting(const ros::Time&)
 {
   synchronizeJointStates();
 
@@ -399,13 +399,13 @@ void CoordinatedRobotController::starting(const ros::Time&)
   positioner_setpoint_pub_->msg_.coordinated = true;
 }
 
-void CoordinatedRobotController::stopping(const ros::Time&)
+void CoordinatedNullspaceController::stopping(const ros::Time&)
 {
   positioner_setpoint_pub_->msg_.coordinated = false;
   positioner_setpoint_pub_->unlockAndPublish();
 }
 
-void CoordinatedRobotController::synchronizeJointStates()
+void CoordinatedNullspaceController::synchronizeJointStates()
 {
   // Synchronize the internal state with the hardware
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
@@ -415,7 +415,7 @@ void CoordinatedRobotController::synchronizeJointStates()
   }
 }
 
-void CoordinatedRobotController::posJointStateCallback(
+void CoordinatedNullspaceController::posJointStateCallback(
     const sensor_msgs::JointStateConstPtr& msg)
 {
   KDL::JntArrayVel pos_state(n_pos_joints_);
@@ -427,7 +427,7 @@ void CoordinatedRobotController::posJointStateCallback(
   positioner_state_.writeFromNonRT(pos_state);
 }
 
-void CoordinatedRobotController::setpointCallback(
+void CoordinatedNullspaceController::setpointCallback(
     const coordinated_control_msgs::RobotSetpointConstPtr& msg)
 {
   axially_symmetric_controllers::AxiallySymmetricSetpoint new_setpoint;
@@ -447,7 +447,7 @@ void CoordinatedRobotController::setpointCallback(
   setpoint_.writeFromNonRT(new_setpoint);
 }
 
-void CoordinatedRobotController::reconfCallback(
+void CoordinatedNullspaceController::reconfCallback(
     axially_symmetric_controllers::AxiallySymmetricControllerConfig& config,
     uint16_t /*level*/)
 {
@@ -461,7 +461,7 @@ void CoordinatedRobotController::reconfCallback(
   dynamic_params_.writeFromNonRT(dynamic_params);
 }
 
-bool CoordinatedRobotController::queryPoseService(
+bool CoordinatedNullspaceController::queryPoseService(
     coordinated_control_msgs::QueryPose::Request& req,
     coordinated_control_msgs::QueryPose::Response& resp)
 {
@@ -491,5 +491,5 @@ bool CoordinatedRobotController::queryPoseService(
 }  // namespace coordinated_motion_controllers
 
 PLUGINLIB_EXPORT_CLASS(
-    coordinated_motion_controllers::CoordinatedRobotController,
+    coordinated_motion_controllers::CoordinatedNullspaceController,
     controller_interface::ControllerBase)

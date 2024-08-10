@@ -1,6 +1,6 @@
 <library path="lib/libcoordinated_motion_controllers">
-  <class name="coordinated_motion_controllers/CoordinatedRobotController"
-         type="coordinated_motion_controllers::CoordinatedRobotController"
+  <class name="coordinated_motion_controllers/CoordinatedNullspaceController"
+         type="coordinated_motion_controllers::CoordinatedNullspaceController"
          base_class_type="controller_interface::ControllerBase">
     <description>
       Coordinated task-space controller that maximizes manipulability using null-space projection

@@ -21,7 +21,7 @@ def linear_path(start, end, vel):
     dur = path_len / vel
 
     f = lambda t: start + t * diff
-    f_dot = lambda t: vel * u
+    f_dot = lambda _: vel * u
     return f, f_dot, dur
 
 
