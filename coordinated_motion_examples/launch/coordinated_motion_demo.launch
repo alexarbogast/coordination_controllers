@@ -1,15 +1,11 @@
 <?xml version="1.0"?>
 <launch>
-
   <group ns="rob1">
-    <rosparam file="$(find coordinated_motion_examples)/config/controller_clients.yaml"/>
     <node pkg="coordinated_motion_examples" type="coordinated_motion_demo_rob1.py" name="coordinated_motion_client" output="screen"/>
   </group>
 
   <group ns="rob2">
-    <rosparam file="$(find coordinated_motion_examples)/config/controller_clients.yaml"/>
     <node pkg="coordinated_motion_examples" type="coordinated_motion_demo_rob2.py" name="coordinated_motion_client" output="screen"/>
   </group>
-
 </launch>
 

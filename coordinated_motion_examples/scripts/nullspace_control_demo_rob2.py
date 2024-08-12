@@ -19,7 +19,7 @@ LINEAR_VELOCITY = 0.300
 
 class CoordinatedMotionDemo:
     def __init__(self):
-        self.controller_client = ControllerClient("coordinated_motion_controller")
+        self.controller_client = ControllerClient("task_space_controller")
         self.joint_controller_client = JointControllerClient(
             "joint_trajectory_controller"
         )
@@ -33,21 +33,21 @@ class CoordinatedMotionDemo:
         self.start_joint_control()
         self.joint_controller_client.move_joint(self.home, 1.0)
 
-        self.start_coordinated_control()
-        self.coordinated_hypotrochoid()
+        self.start_taskspace_control()
+        self.base_frame_hypotrochoid()
 
         self.start_joint_control()
         self.joint_controller_client.move_joint(self.home, 1.0)
 
-    def coordinated_hypotrochoid(self):
+    def base_frame_hypotrochoid(self):
         scaling = 1 / 25
-        offset = np.array([0.0, 0.0, 0.01])
-        tt = np.linspace(0, 6 * np.pi, 1500)
+        offset = np.array([0.5, 0.0, 0.1])
+        tt = np.linspace(0, 6 * np.pi, 1000)
         f, f_dot = hypotrochoid(scaling)
 
         self.path_viz.visualize_path(
-            [f(t) + offset for t in np.linspace(np.pi, 7 * np.pi, 500)],
-            "positioner",
+            [f(t) + offset for t in np.linspace(0, 6 * np.pi, 500)],
+            f"{NS}_base_link",
         )
 
         rate = rospy.Rate(100)
@@ -87,14 +87,14 @@ class CoordinatedMotionDemo:
             [self.joint_controller_client.name], [self.controller_client.name]
         )
 
-    def start_coordinated_control(self):
+    def start_taskspace_control(self):
         self.controller_manager_client.switch_controller(
             [self.controller_client.name], [self.joint_controller_client.name]
         )
 
 
 if __name__ == "__main__":
-    rospy.init_node("coordinated_motion_client")
+    rospy.init_node("nullspace_control_client")
 
     try:
         demo = CoordinatedMotionDemo()

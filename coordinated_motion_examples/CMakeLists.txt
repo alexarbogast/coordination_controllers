@@ -18,7 +18,10 @@ include_directories(${catkin_INCLUDE_DIRS})
 catkin_install_python(PROGRAMS
   scripts/coordinated_motion_demo_rob1.py
   scripts/coordinated_motion_demo_rob2.py
-  scripts/twist_decomposition_demo.py
+  scripts/nullspace_control_demo_rob1.py
+  scripts/nullspace_control_demo_rob2.py
+  scripts/twist_decomposition_demo_rob1.py
+  scripts/twist_decomposition_demo_rob2.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
