@@ -175,7 +175,7 @@ void TwistDecompositionController::update(const ros::Time&,
   synchronizeJointStates();  // update state
 
   const DynamicParams* params = dynamic_params_.readFromRT();
-  const TwistDecompositionSetpoint* setpoint = setpoint_.readFromRT();
+  const Setpoint* setpoint = setpoint_.readFromRT();
 
   KDL::Jacobian jac(n_joints_);
   robot_jacobian_solver_->JntToJac(robot_state_.q, jac);
@@ -192,18 +192,7 @@ void TwistDecompositionController::update(const ros::Time&,
   double rot_angle = frame_error.M.GetRotAngle(rot_axis);
 
   Eigen::Vector3d pos_error(frame_error.p.data);
-  // Eigen::Vector3d rot_error((rot_angle * rot_axis).data);
-
-  // temp rotation error
-  Eigen::Quaterniond current_q;
-  pose.M.GetQuaternion(current_q.x(), current_q.y(), current_q.z(),
-                       current_q.w());
-
-  Eigen::Quaterniond setpoint_q;
-  setpoint->pose.M.GetQuaternion(setpoint_q.x(), setpoint_q.y(), setpoint_q.z(),
-                                 setpoint_q.w());
-
-  Eigen::Vector3d rot_error = (setpoint_q * current_q.inverse()).vec();
+  Eigen::Vector3d rot_error((rot_angle * rot_axis).data);
 
   Eigen::Matrix<double, 6, 1> cart_cmd;
   cart_cmd << params->k_position * pos_error + setpoint->velocity,
@@ -283,7 +272,7 @@ void TwistDecompositionController::starting(const ros::Time&)
 {
   synchronizeJointStates();
 
-  TwistDecompositionSetpoint init_setpoint;
+  Setpoint init_setpoint;
   robot_fk_solver_->JntToCart(robot_state_.q, init_setpoint.pose);
   init_setpoint.velocity = Eigen::Vector3d::Zero();
   setpoint_.initRT(init_setpoint);
@@ -304,10 +293,11 @@ void TwistDecompositionController::synchronizeJointStates()
 void TwistDecompositionController::setpointCallback(
     const coordinated_control_msgs::TwistDecompositionSetpointConstPtr& msg)
 {
-  TwistDecompositionSetpoint setpoint;
+  Setpoint setpoint;
 
   setpoint.pose.p = KDL::Vector(msg->pose.position.x, msg->pose.position.y,
                                 msg->pose.position.z);
+
   setpoint.pose.M = KDL::Rotation::Quaternion(
       msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z,
       msg->pose.orientation.w);
@@ -318,7 +308,7 @@ void TwistDecompositionController::setpointCallback(
 }
 
 void TwistDecompositionController::reconfCallback(
-    AxiallySymmetricControllerConfig& config, uint16_t /*level*/)
+    ControllerConfig& config, uint16_t /*level*/)
 {
   DynamicParams dynamic_params;
   dynamic_params.alpha = config.alpha;

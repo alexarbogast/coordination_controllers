@@ -1,6 +1,7 @@
 #pragma once
 
 #include <axially_symmetric_controllers/setpoint.h>
+#include <axially_symmetric_controllers/AxiallySymmetricControllerConfig.h>
 
 #include <kdl/chainjnttojacsolver.hpp>
 #include <kdl/chainjnttojacdotsolver.hpp>
@@ -8,13 +9,12 @@
 #include <kdl/jntarrayvel.hpp>
 
 #include <sensor_msgs/JointState.h>
-#include <coordinated_control_msgs/RobotSetpoint.h>
+#include <coordinated_control_msgs/TwistDecompositionSetpoint.h>
 #include <coordinated_control_msgs/PositionerSetpoint.h>
 #include <coordinated_control_msgs/QueryPose.h>
 #include <realtime_tools/realtime_buffer.h>
 #include <realtime_tools/realtime_publisher.h>
 #include <dynamic_reconfigure/server.h>
-#include <axially_symmetric_controllers/AxiallySymmetricControllerConfig.h>
 
 #include <controller_interface/controller.h>
 #include <hardware_interface/joint_command_interface.h>
@@ -34,14 +34,17 @@ public:
   virtual void stopping(const ros::Time&) override;
 
 private:
+  typedef axially_symmetric_controllers::TwistDecompositionSetpoint Setpoint;
+  typedef axially_symmetric_controllers::AxiallySymmetricControllerConfig
+      ControllerConfig;
+  typedef dynamic_reconfigure::Server<ControllerConfig> ReconfigureServer;
+
   void synchronizeJointStates();
 
-  void reconfCallback(
-      axially_symmetric_controllers::AxiallySymmetricControllerConfig& config,
-      uint16_t /*level*/);
+  void reconfCallback(ControllerConfig& config, uint16_t /*level*/);
   void posJointStateCallback(const sensor_msgs::JointStateConstPtr& msg);
-  void
-  setpointCallback(const coordinated_control_msgs::RobotSetpointConstPtr& msg);
+  void setpointCallback(
+      const coordinated_control_msgs::TwistDecompositionSetpointConstPtr& msg);
   bool queryPoseService(coordinated_control_msgs::QueryPose::Request& req,
                         coordinated_control_msgs::QueryPose::Response& resp);
 
@@ -76,9 +79,7 @@ private:
       positioner_setpoint_pub_;
 
   // setpoint
-  realtime_tools::RealtimeBuffer<
-      axially_symmetric_controllers::AxiallySymmetricSetpoint>
-      setpoint_;
+  realtime_tools::RealtimeBuffer<Setpoint> setpoint_;
   ros::Subscriber sub_setpoint_;
 
   // dynamic reconfigure
@@ -93,10 +94,6 @@ private:
     double k_limits;
   };
   realtime_tools::RealtimeBuffer<DynamicParams> dynamic_params_;
-
-  typedef dynamic_reconfigure::Server<
-      axially_symmetric_controllers::AxiallySymmetricControllerConfig>
-      ReconfigureServer;
   std::shared_ptr<ReconfigureServer> dyn_reconf_server_;
 
   ros::ServiceServer query_pose_service_;

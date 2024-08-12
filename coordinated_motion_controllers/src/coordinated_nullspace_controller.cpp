@@ -199,12 +199,13 @@ bool CoordinatedNullspaceController::init(
       home_config.data(), home_config.size());
 
   // Setup ROS components
-  sub_positioner_joint_states_ =
-      nh.subscribe(positioner_topic, 1,
-                   &CoordinatedNullspaceController::posJointStateCallback, this);
+  sub_positioner_joint_states_ = nh.subscribe(
+      positioner_topic, 1,
+      &CoordinatedNullspaceController::posJointStateCallback, this);
 
-  sub_setpoint_ = nh.subscribe(
-      setpoint_topic, 1, &CoordinatedNullspaceController::setpointCallback, this);
+  sub_setpoint_ =
+      nh.subscribe(setpoint_topic, 1,
+                   &CoordinatedNullspaceController::setpointCallback, this);
 
   positioner_setpoint_pub_ = std::make_unique<realtime_tools::RealtimePublisher<
       coordinated_control_msgs::PositionerSetpoint>>(nh, POS_SETPOINT_NS, 1);
@@ -225,13 +226,12 @@ bool CoordinatedNullspaceController::init(
 }
 
 void CoordinatedNullspaceController::update(const ros::Time&,
-                                        const ros::Duration& period)
+                                            const ros::Duration& period)
 {
   synchronizeJointStates();  // update state
 
   const DynamicParams* params = dynamic_params_.readFromRT();
-  const axially_symmetric_controllers::AxiallySymmetricSetpoint* setpoint =
-      setpoint_.readFromRT();
+  const Setpoint* setpoint = setpoint_.readFromRT();
 
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
   combined_positions.data << positioner_state_.readFromRT()->q.data.reverse(),
@@ -246,21 +246,21 @@ void CoordinatedNullspaceController::update(const ros::Time&,
   robot_fk_solver_->JntToCart(robot_state_.q, pose_bf);
   coordinated_fk_solver_->JntToCart(combined_positions, pose_pf);
 
-  /* orientation error */
-  Eigen::Vector3d aiming_bf =
-      Eigen::Matrix3d(pose_bf.M.Inverse().data) * aiming_vec_;
+  /* error */
+  KDL::Frame frame_error;
+  frame_error.p = setpoint->pose.p - pose_pf.p;
+  frame_error.M = setpoint->pose.M * pose_pf.M.Inverse();
 
-  Eigen::Vector3d rot_axis =
-      axially_symmetric_controllers::axisBetween(aiming_bf, setpoint->aiming);
-  double rot_angle =
-      axially_symmetric_controllers::angleBetween(aiming_bf, setpoint->aiming);
+  KDL::Vector rot_axis = KDL::Vector::Zero();
+  double rot_angle = frame_error.M.GetRotAngle(rot_axis);
 
-  Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
-  orient_error *= rot_angle;
+  Eigen::Vector3d pos_error(frame_error.p.data);
+  Eigen::Vector3d rot_error((rot_angle * rot_axis).data);
+  Eigen::Vector2d orient_error(rot_error.x(), rot_error.y());
 
-  /* position error */
-  Eigen::Vector3d pos_error =
-      setpoint->position - Eigen::Vector3d(pose_pf.p.data);
+  Eigen::Matrix<double, 5, 1> cart_cmd;
+  cart_cmd << params->k_position * pos_error + setpoint->velocity,
+      params->k_aiming * orient_error;
 
   /* redundancy resolution */
   // manipulability maximization
@@ -307,14 +307,10 @@ void CoordinatedNullspaceController::update(const ros::Time&,
       ((1 - lambda.array()) * q_manip.array());  // secondary task command
 
   /* control */
-  Eigen::Matrix<double, 5, 1> cart_cmd;
-  cart_cmd << params->k_position * pos_error + setpoint->velocity,
-      params->k_aiming * orient_error;
-
   Eigen::MatrixXd Jr =
       coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
-  Jr.block(3, 0, 2, n_robot_joints_) =
-      rob_jac.data.block(3, 0, 2, n_robot_joints_);
+  // Jr.block(3, 0, 2, n_robot_joints_) =
+  //     rob_jac.data.block(3, 0, 2, n_robot_joints_);
 
   // Eigen::MatrixXd Jr_pinv =
   //     Jr.transpose() *
@@ -323,7 +319,7 @@ void CoordinatedNullspaceController::update(const ros::Time&,
   Eigen::MatrixXd Jr_pinv = Jr.transpose() * (Jr * Jr.transpose()).inverse();
 
   Eigen::MatrixXd Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
-  Jp.block(3, 0, 2, n_pos_joints_).setZero();
+  /* Jp.block(3, 0, 2, n_pos_joints_).setZero(); */
 
   Eigen::MatrixXd I =
       Eigen::MatrixXd::Identity(n_robot_joints_, n_robot_joints_);
@@ -342,11 +338,11 @@ void CoordinatedNullspaceController::update(const ros::Time&,
   Eigen::VectorXd robot_qdot_attempt = (home_config_ - robot_state_.q.data);
   // Eigen::VectorXd robot_qdot_attempt = manip_grad;
 
-  Eigen::VectorXd combined_velocities(n_robot_joints_ + n_pos_joints_);
-  combined_velocities << positioner_state_.readFromRT()->qdot.data.reverse(),
-      joint_cmd;
-
-  Eigen::VectorXd cart_exec = coord_jac.data * combined_velocities;
+  // Eigen::VectorXd combined_velocities(n_robot_joints_ + n_pos_joints_);
+  // combined_velocities << positioner_state_.readFromRT()->qdot.data.reverse(),
+  //     joint_cmd;
+  //
+  // Eigen::VectorXd cart_exec = coord_jac.data * combined_velocities;
 
   // Eigen::MatrixXd Jpp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
   // Jpp.block(3, 0, 3, n_pos_joints_).setZero();
@@ -378,21 +374,12 @@ void CoordinatedNullspaceController::starting(const ros::Time&)
 {
   synchronizeJointStates();
 
-  KDL::Frame init_pose_bf;
-  robot_fk_solver_->JntToCart(robot_state_.q, init_pose_bf);
-
-  axially_symmetric_controllers::AxiallySymmetricSetpoint init_setpoint;
-  init_setpoint.velocity = Eigen::Vector3d::Zero();
-  init_setpoint.aiming =
-      Eigen::Matrix3d(init_pose_bf.M.Inverse().data) * aiming_vec_;
-
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
   combined_positions.data << positioner_state_.readFromRT()->q.data.reverse(),
       robot_state_.q.data;
 
-  KDL::Frame init_pose_pf;
-  coordinated_fk_solver_->JntToCart(combined_positions, init_pose_pf);
-  init_setpoint.position = Eigen::Vector3d(init_pose_pf.p.data);
+  Setpoint init_setpoint;
+  coordinated_fk_solver_->JntToCart(combined_positions, init_setpoint.pose);
 
   setpoint_.initRT(init_setpoint);
 
@@ -428,28 +415,24 @@ void CoordinatedNullspaceController::posJointStateCallback(
 }
 
 void CoordinatedNullspaceController::setpointCallback(
-    const coordinated_control_msgs::RobotSetpointConstPtr& msg)
+    const coordinated_control_msgs::TwistDecompositionSetpointConstPtr& msg)
 {
-  axially_symmetric_controllers::AxiallySymmetricSetpoint new_setpoint;
-  // clang-format off
-  new_setpoint.position << msg->pose.position.x,
-                           msg->pose.position.y,
-                           msg->pose.position.z;
+  Setpoint setpoint;
 
-  new_setpoint.aiming << msg->pose.aiming.x,
-                         msg->pose.aiming.y,
-                         msg->pose.aiming.z;
+  setpoint.pose.p = KDL::Vector(msg->pose.position.x, msg->pose.position.y,
+                                msg->pose.position.z);
 
-  new_setpoint.velocity << msg->velocity.x,
-                           msg->velocity.y,
-                           msg->velocity.z;
-  // clang-format on
-  setpoint_.writeFromNonRT(new_setpoint);
+  setpoint.pose.M = KDL::Rotation::Quaternion(
+      msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z,
+      msg->pose.orientation.w);
+
+  setpoint.velocity << msg->velocity.x, msg->velocity.y, msg->velocity.z;
+
+  setpoint_.writeFromNonRT(setpoint);
 }
 
-void CoordinatedNullspaceController::reconfCallback(
-    axially_symmetric_controllers::AxiallySymmetricControllerConfig& config,
-    uint16_t /*level*/)
+void CoordinatedNullspaceController::reconfCallback(ControllerConfig& config,
+                                                    uint16_t /*level*/)
 {
   DynamicParams dynamic_params;
   dynamic_params.alpha = config.alpha;

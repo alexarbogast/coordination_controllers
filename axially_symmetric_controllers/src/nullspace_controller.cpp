@@ -175,7 +175,7 @@ void NullspaceController::update(const ros::Time&, const ros::Duration& period)
   synchronizeJointStates();  // update state
 
   const DynamicParams* params = dynamic_params_.readFromRT();
-  const AxiallySymmetricSetpoint* setpoint = setpoint_.readFromRT();
+  const Setpoint* setpoint = setpoint_.readFromRT();
 
   KDL::Jacobian jac(n_joints_);
   robot_jacobian_solver_->JntToJac(robot_state_.q, jac);
@@ -183,18 +183,21 @@ void NullspaceController::update(const ros::Time&, const ros::Duration& period)
   KDL::Frame pose;
   robot_fk_solver_->JntToCart(robot_state_.q, pose);
 
-  /* orientation error */
-  Eigen::Vector3d aiming_bf =
-      Eigen::Matrix3d(pose.M.Inverse().data) * aiming_vec_;
+  /* error */
+  KDL::Frame frame_error;
+  frame_error.p = setpoint->pose.p - pose.p;
+  frame_error.M = setpoint->pose.M * pose.M.Inverse();
 
-  Eigen::Vector3d rot_axis = axisBetween(aiming_bf, setpoint->aiming);
-  double rot_angle = angleBetween(aiming_bf, setpoint->aiming);
+  KDL::Vector rot_axis = KDL::Vector::Zero();
+  double rot_angle = frame_error.M.GetRotAngle(rot_axis);
 
-  Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
-  orient_error *= rot_angle;
+  Eigen::Vector3d pos_error(frame_error.p.data);
+  Eigen::Vector3d rot_error((rot_angle * rot_axis).data);
+  Eigen::Vector2d orient_error(rot_error.x(), rot_error.y());
 
-  /* position error */
-  Eigen::Vector3d pos_error = setpoint->position - Eigen::Vector3d(pose.p.data);
+  Eigen::Matrix<double, 5, 1> cart_cmd;
+  cart_cmd << params->k_position * pos_error + setpoint->velocity,
+      params->k_aiming * rot_error;
 
   /* redundancy resolution */
   // manipulability maximization
@@ -241,10 +244,6 @@ void NullspaceController::update(const ros::Time&, const ros::Duration& period)
       ((1 - lambda.array()) * q_manip.array());  // secondary task command
 
   /* control */
-  Eigen::Matrix<double, 5, 1> cart_cmd;
-  cart_cmd << params->k_position * pos_error + setpoint->velocity,
-      params->k_aiming * orient_error;
-
   Eigen::MatrixXd Jr = jac.data.block(0, 0, 5, n_joints_);
   Eigen::MatrixXd Jr_pinv =
       Jr.transpose() *
@@ -265,15 +264,9 @@ void NullspaceController::starting(const ros::Time&)
 {
   synchronizeJointStates();
 
-  KDL::Frame init_pose_bf;
-  robot_fk_solver_->JntToCart(robot_state_.q, init_pose_bf);
-
-  AxiallySymmetricSetpoint init_setpoint;
+  Setpoint init_setpoint;
+  robot_fk_solver_->JntToCart(robot_state_.q, init_setpoint.pose);
   init_setpoint.velocity = Eigen::Vector3d::Zero();
-  init_setpoint.aiming =
-      Eigen::Matrix3d(init_pose_bf.M.Inverse().data) * aiming_vec_;
-  init_setpoint.position = Eigen::Vector3d(init_pose_bf.p.data);
-
   setpoint_.initRT(init_setpoint);
 }
 
@@ -290,27 +283,24 @@ void NullspaceController::synchronizeJointStates()
 }
 
 void NullspaceController::setpointCallback(
-    const coordinated_control_msgs::RobotSetpointConstPtr& msg)
+    const coordinated_control_msgs::TwistDecompositionSetpointConstPtr& msg)
 {
-  AxiallySymmetricSetpoint new_setpoint;
-  // clang-format off
-  new_setpoint.position << msg->pose.position.x,
-                           msg->pose.position.y,
-                           msg->pose.position.z;
+  Setpoint setpoint;
 
-  new_setpoint.aiming << msg->pose.aiming.x,
-                         msg->pose.aiming.y,
-                         msg->pose.aiming.z;
+  setpoint.pose.p = KDL::Vector(msg->pose.position.x, msg->pose.position.y,
+                                msg->pose.position.z);
 
-  new_setpoint.velocity << msg->velocity.x,
-                           msg->velocity.y,
-                           msg->velocity.z;
-  // clang-format on
-  setpoint_.writeFromNonRT(new_setpoint);
+  setpoint.pose.M = KDL::Rotation::Quaternion(
+      msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z,
+      msg->pose.orientation.w);
+
+  setpoint.velocity << msg->velocity.x, msg->velocity.y, msg->velocity.z;
+
+  setpoint_.writeFromNonRT(setpoint);
 }
 
-void NullspaceController::reconfCallback(
-    AxiallySymmetricControllerConfig& config, uint16_t /*level*/)
+void NullspaceController::reconfCallback(ControllerConfig& config,
+                                         uint16_t /*level*/)
 {
   DynamicParams dynamic_params;
   dynamic_params.alpha = config.alpha;

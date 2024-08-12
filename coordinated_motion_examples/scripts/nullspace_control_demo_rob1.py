@@ -1,9 +1,9 @@
 import numpy as np
 import rospy
 
-from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import Point, Vector3, Quaternion
 from std_msgs.msg import ColorRGBA
-from coordinated_control_msgs.msg import RobotSetpoint
+from coordinated_control_msgs.msg import TwistDecompositionSetpoint
 
 from coordinated_motion_examples import (
     ControllerClient,
@@ -19,7 +19,9 @@ LINEAR_VELOCITY = 0.300
 
 class CoordinatedMotionDemo:
     def __init__(self):
-        self.controller_client = ControllerClient("task_space_controller")
+        self.controller_client = ControllerClient(
+            "task_space_controller", TwistDecompositionSetpoint
+        )
         self.joint_controller_client = JointControllerClient(
             "joint_trajectory_controller"
         )
@@ -51,8 +53,8 @@ class CoordinatedMotionDemo:
         )
 
         rate = rospy.Rate(100)
-        setpoint = RobotSetpoint()
-        setpoint.pose.aiming = Vector3(0.0, 0.0, 1.0)
+        setpoint = TwistDecompositionSetpoint()
+        setpoint.pose.orientation = Quaternion(0.0, 1.0, 0.0, 0.0)
 
         # travel to start
         pose = self.controller_client.get_pose()
@@ -65,7 +67,7 @@ class CoordinatedMotionDemo:
         for t in np.linspace(0, 1, int(dur * 100)):
             gt = g(t)
             g_dott = g_dot(t)
-            setpoint.pose.position = Vector3(gt[0], gt[1], gt[2])
+            setpoint.pose.position = Point(gt[0], gt[1], gt[2])
             setpoint.velocity = Vector3(g_dott[0], g_dott[1], g_dott[2])
             self.controller_client.publish_setpoint(setpoint)
             rate.sleep()
@@ -75,7 +77,7 @@ class CoordinatedMotionDemo:
             ft = f(t) + offset
             f_dott = f_dot(t)
 
-            setpoint.pose.position = Vector3(ft[0], ft[1], ft[2])
+            setpoint.pose.position = Point(ft[0], ft[1], ft[2])
             setpoint.velocity = Vector3(f_dott[0], f_dott[1], f_dott[2])
             self.controller_client.publish_setpoint(setpoint)
             rate.sleep()

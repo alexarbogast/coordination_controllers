@@ -7,7 +7,7 @@
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/jntarrayvel.hpp>
 
-#include <coordinated_control_msgs/RobotSetpoint.h>
+#include <coordinated_control_msgs/TwistDecompositionSetpoint.h>
 #include <coordinated_control_msgs/QueryPose.h>
 #include <realtime_tools/realtime_buffer.h>
 #include <dynamic_reconfigure/server.h>
@@ -30,12 +30,16 @@ public:
   virtual void stopping(const ros::Time&) override;
 
 private:
+  typedef TwistDecompositionSetpoint Setpoint;
+  typedef AxiallySymmetricControllerConfig ControllerConfig;
+  typedef dynamic_reconfigure::Server<AxiallySymmetricControllerConfig>
+      ReconfigureServer;
+
   void synchronizeJointStates();
 
-  void reconfCallback(AxiallySymmetricControllerConfig& config,
-                      uint16_t /*level*/);
-  void
-  setpointCallback(const coordinated_control_msgs::RobotSetpointConstPtr& msg);
+  void reconfCallback(ControllerConfig& config, uint16_t /*level*/);
+  void setpointCallback(
+      const coordinated_control_msgs::TwistDecompositionSetpointConstPtr& msg);
   bool queryPoseService(coordinated_control_msgs::QueryPose::Request& req,
                         coordinated_control_msgs::QueryPose::Response& resp);
 
@@ -60,7 +64,7 @@ private:
   KDL::JntArray limits_bounds_;
 
   // setpoint
-  realtime_tools::RealtimeBuffer<AxiallySymmetricSetpoint> setpoint_;
+  realtime_tools::RealtimeBuffer<Setpoint> setpoint_;
   ros::Subscriber sub_setpoint_;
 
   // dynamic reconfigure
@@ -75,9 +79,6 @@ private:
     double k_limits;
   };
   realtime_tools::RealtimeBuffer<DynamicParams> dynamic_params_;
-
-  typedef dynamic_reconfigure::Server<AxiallySymmetricControllerConfig>
-      ReconfigureServer;
   std::shared_ptr<ReconfigureServer> dyn_reconf_server_;
 
   ros::ServiceServer query_pose_service_;
