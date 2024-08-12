@@ -291,7 +291,7 @@ void TwistDecompositionController::synchronizeJointStates()
 }
 
 void TwistDecompositionController::setpointCallback(
-    const coordinated_control_msgs::TwistDecompositionSetpointConstPtr& msg)
+    const coordinated_control_msgs::AxiallySymmetricSetpointConstPtr& msg)
 {
   Setpoint setpoint;
 
@@ -307,8 +307,8 @@ void TwistDecompositionController::setpointCallback(
   setpoint_.writeFromNonRT(setpoint);
 }
 
-void TwistDecompositionController::reconfCallback(
-    ControllerConfig& config, uint16_t /*level*/)
+void TwistDecompositionController::reconfCallback(ControllerConfig& config,
+                                                  uint16_t /*level*/)
 {
   DynamicParams dynamic_params;
   dynamic_params.alpha = config.alpha;

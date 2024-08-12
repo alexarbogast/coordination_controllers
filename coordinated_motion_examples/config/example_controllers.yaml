@@ -1,5 +1,5 @@
 rob1:
-  task_space_controller:
+  nullspace_controller:
     type: axially_symmetric_controllers/NullspaceController
     joints:
       - rob1_joint1
@@ -84,7 +84,7 @@ rob1:
 
 
 rob2:
-  task_space_controller:
+  nullspace_controller:
     type: axially_symmetric_controllers/NullspaceController
     joints:
       - rob2_joint1

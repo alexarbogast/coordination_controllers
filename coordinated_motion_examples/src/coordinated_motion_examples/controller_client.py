@@ -4,12 +4,12 @@ import actionlib
 from control_msgs.msg import FollowJointTrajectoryGoal, FollowJointTrajectoryAction
 from trajectory_msgs.msg import JointTrajectoryPoint
 
-from coordinated_control_msgs.msg import RobotSetpoint
+from coordinated_control_msgs.msg import AxiallySymmetricSetpoint
 from coordinated_control_msgs.srv import QueryPose
 
 
 class ControllerClient:
-    def __init__(self, name, setpoint_type=RobotSetpoint):
+    def __init__(self, name, setpoint_type=AxiallySymmetricSetpoint):
         self.name = name
 
         setpoint_topic = rospy.get_param(self.name + "/setpoint_topic")
@@ -44,6 +44,7 @@ class JointControllerClient:
         )
         rospy.loginfo("Waiting for follow_joint_trajectory action")
         self.joint_traj_client.wait_for_server()
+        rospy.loginfo(f"Connected to controller: {self.name}")
 
     def move_joint(self, joint_goal, duration):
         goal = FollowJointTrajectoryGoal()

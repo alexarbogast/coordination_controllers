@@ -8,7 +8,7 @@
 #include <kdl/jntarrayvel.hpp>
 #include <kdl/frames.hpp>
 
-#include <coordinated_control_msgs/TwistDecompositionSetpoint.h>
+#include <coordinated_control_msgs/AxiallySymmetricSetpoint.h>
 #include <coordinated_control_msgs/QueryPose.h>
 #include <realtime_tools/realtime_buffer.h>
 #include <dynamic_reconfigure/server.h>
@@ -32,7 +32,7 @@ public:
   virtual void stopping(const ros::Time&) override;
 
 private:
-  typedef TwistDecompositionSetpoint Setpoint;
+  typedef AxiallySymmetricSetpoint Setpoint;
   typedef AxiallySymmetricControllerConfig ControllerConfig;
   typedef dynamic_reconfigure::Server<AxiallySymmetricControllerConfig>
       ReconfigureServer;
@@ -41,7 +41,7 @@ private:
 
   void reconfCallback(ControllerConfig& config, uint16_t /*level*/);
   void setpointCallback(
-      const coordinated_control_msgs::TwistDecompositionSetpointConstPtr& msg);
+      const coordinated_control_msgs::AxiallySymmetricSetpointConstPtr& msg);
   bool queryPoseService(coordinated_control_msgs::QueryPose::Request& req,
                         coordinated_control_msgs::QueryPose::Response& resp);
 

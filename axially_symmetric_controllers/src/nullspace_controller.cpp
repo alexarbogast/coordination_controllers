@@ -283,7 +283,7 @@ void NullspaceController::synchronizeJointStates()
 }
 
 void NullspaceController::setpointCallback(
-    const coordinated_control_msgs::TwistDecompositionSetpointConstPtr& msg)
+    const coordinated_control_msgs::AxiallySymmetricSetpointConstPtr& msg)
 {
   Setpoint setpoint;
 

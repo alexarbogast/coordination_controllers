@@ -3,7 +3,7 @@ import rospy
 
 from geometry_msgs.msg import Point, Vector3, Quaternion
 from std_msgs.msg import ColorRGBA
-from coordinated_control_msgs.msg import TwistDecompositionSetpoint
+from coordinated_control_msgs.msg import AxiallySymmetricSetpoint
 
 from coordinated_motion_examples import (
     ControllerClient,
@@ -19,9 +19,7 @@ LINEAR_VELOCITY = 0.300
 
 class CoordinatedMotionDemo:
     def __init__(self):
-        self.controller_client = ControllerClient(
-            "twist_decomposition_controller", TwistDecompositionSetpoint
-        )
+        self.controller_client = ControllerClient("twist_decomposition_controller")
         self.joint_controller_client = JointControllerClient(
             "joint_trajectory_controller"
         )
@@ -53,7 +51,7 @@ class CoordinatedMotionDemo:
         )
 
         rate = rospy.Rate(100)
-        setpoint = TwistDecompositionSetpoint()
+        setpoint = AxiallySymmetricSetpoint()
         setpoint.pose.orientation = Quaternion(0.0, 1.0, 0.0, 0.0)
 
         # travel to start

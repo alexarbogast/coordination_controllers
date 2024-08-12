@@ -10,10 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   DIRECTORY msg
   FILES
-    AxiallySymmetricPose.msg
-    RobotSetpoint.msg
+    AxiallySymmetricSetpoint.msg
     PositionerSetpoint.msg
-    TwistDecompositionSetpoint.msg
 )
 
 add_service_files(
