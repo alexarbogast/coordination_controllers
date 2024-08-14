@@ -184,20 +184,20 @@ void NullspaceController::update(const ros::Time&, const ros::Duration& period)
   robot_fk_solver_->JntToCart(robot_state_.q, pose);
 
   /* error */
-  KDL::Frame frame_error;
-  frame_error.p = setpoint->pose.p - pose.p;
-  frame_error.M = setpoint->pose.M * pose.M.Inverse();
+  Eigen::Vector3d aim_current(pose.M.UnitZ().data);
+  Eigen::Vector3d aim_desired(setpoint->pose.M.UnitZ().data);
 
-  KDL::Vector rot_axis = KDL::Vector::Zero();
-  double rot_angle = frame_error.M.GetRotAngle(rot_axis);
+  Eigen::Vector3d rot_axis = axisBetween(aim_current, aim_desired);
+  double rot_angle = angleBetween(aim_current, aim_desired);
 
-  Eigen::Vector3d pos_error(frame_error.p.data);
-  Eigen::Vector3d rot_error((rot_angle * rot_axis).data);
-  Eigen::Vector2d orient_error(rot_error.x(), rot_error.y());
+  Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
+  orient_error *= rot_angle;
+
+  Eigen::Vector3d pos_error((setpoint->pose.p - pose.p).data);
 
   Eigen::Matrix<double, 5, 1> cart_cmd;
   cart_cmd << params->k_position * pos_error + setpoint->velocity,
-      params->k_aiming * rot_error;
+      params->k_aiming * orient_error;
 
   /* redundancy resolution */
   // manipulability maximization

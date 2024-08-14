@@ -17,7 +17,7 @@ NS = "rob2"
 LINEAR_VELOCITY = 0.300
 
 
-class CoordinatedMotionDemo:
+class NullspaceControlDemo:
     def __init__(self):
         self.controller_client = ControllerClient("nullspace_controller")
         self.joint_controller_client = JointControllerClient(
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     rospy.init_node("nullspace_control_client")
 
     try:
-        demo = CoordinatedMotionDemo()
+        demo = NullspaceControlDemo()
         demo.run()
     except rospy.ROSInterruptException:
         pass

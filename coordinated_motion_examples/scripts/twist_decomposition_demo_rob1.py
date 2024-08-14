@@ -17,7 +17,7 @@ NS = "rob1"
 LINEAR_VELOCITY = 0.300
 
 
-class CoordinatedMotionDemo:
+class TwistDecompositionDemo:
     def __init__(self):
         self.controller_client = ControllerClient("twist_decomposition_controller")
         self.joint_controller_client = JointControllerClient(
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     rospy.init_node("twist_decomposition_client")
 
     try:
-        demo = CoordinatedMotionDemo()
+        demo = TwistDecompositionDemo()
         demo.run()
     except rospy.ROSInterruptException:
         pass

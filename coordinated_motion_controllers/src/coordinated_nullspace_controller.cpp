@@ -247,16 +247,18 @@ void CoordinatedNullspaceController::update(const ros::Time&,
   coordinated_fk_solver_->JntToCart(combined_positions, pose_pf);
 
   /* error */
-  KDL::Frame frame_error;
-  frame_error.p = setpoint->pose.p - pose_pf.p;
-  frame_error.M = setpoint->pose.M * pose_pf.M.Inverse();
+  Eigen::Vector3d aim_current(pose_pf.M.UnitZ().data);
+  Eigen::Vector3d aim_desired(setpoint->pose.M.UnitZ().data);
 
-  KDL::Vector rot_axis = KDL::Vector::Zero();
-  double rot_angle = frame_error.M.GetRotAngle(rot_axis);
+  Eigen::Vector3d rot_axis =
+      axially_symmetric_controllers::axisBetween(aim_current, aim_desired);
+  double rot_angle =
+      axially_symmetric_controllers::angleBetween(aim_current, aim_desired);
 
-  Eigen::Vector3d pos_error(frame_error.p.data);
-  Eigen::Vector3d rot_error((rot_angle * rot_axis).data);
-  Eigen::Vector2d orient_error(rot_error.x(), rot_error.y());
+  Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
+  orient_error *= rot_angle;
+
+  Eigen::Vector3d pos_error((setpoint->pose.p - pose_pf.p).data);
 
   Eigen::Matrix<double, 5, 1> cart_cmd;
   cart_cmd << params->k_position * pos_error + setpoint->velocity,
@@ -309,24 +311,16 @@ void CoordinatedNullspaceController::update(const ros::Time&,
   /* control */
   Eigen::MatrixXd Jr =
       coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
-  // Jr.block(3, 0, 2, n_robot_joints_) =
-  //     rob_jac.data.block(3, 0, 2, n_robot_joints_);
-
-  // Eigen::MatrixXd Jr_pinv =
-  //     Jr.transpose() *
-  //     (Jr * Jr.transpose() + params->alpha * params->alpha * identity5x5)
-  //         .inverse();
   Eigen::MatrixXd Jr_pinv = Jr.transpose() * (Jr * Jr.transpose()).inverse();
-
   Eigen::MatrixXd Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
-  /* Jp.block(3, 0, 2, n_pos_joints_).setZero(); */
 
   Eigen::MatrixXd I =
       Eigen::MatrixXd::Identity(n_robot_joints_, n_robot_joints_);
+  Eigen::VectorXd q_dot_pos =
+      positioner_state_.readFromRT()->qdot.data.reverse();
+
   Eigen::VectorXd joint_cmd =
-      Jr_pinv * (cart_cmd -
-                 Jp * positioner_state_.readFromRT()->qdot.data.reverse()) +
-      ((I - Jr_pinv * Jr) * h);
+      Jr_pinv * (cart_cmd - Jp * q_dot_pos) + ((I - Jr_pinv * Jr) * h);
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
@@ -336,30 +330,12 @@ void CoordinatedNullspaceController::update(const ros::Time&,
 
   /* desired positioner command */
   Eigen::VectorXd robot_qdot_attempt = (home_config_ - robot_state_.q.data);
-  // Eigen::VectorXd robot_qdot_attempt = manip_grad;
 
-  // Eigen::VectorXd combined_velocities(n_robot_joints_ + n_pos_joints_);
-  // combined_velocities << positioner_state_.readFromRT()->qdot.data.reverse(),
-  //     joint_cmd;
-  //
-  // Eigen::VectorXd cart_exec = coord_jac.data * combined_velocities;
-
-  // Eigen::MatrixXd Jpp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
-  // Jpp.block(3, 0, 3, n_pos_joints_).setZero();
-
-  // Eigen::MatrixXd Jrr =
-  //    coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
-  // Jrr.block(3, 0, 3, n_robot_joints_) = rob_jac.data.block(3, 0, 3,
-  // n_robot_joints_);
-
-  // Eigen::MatrixXd pinv = Jp.transpose() * (Jp * Jp.transpose()).inverse();
-  // Eigen::MatrixXd pinv = Jpp * Jpp.transpose()).inverse();
-
-  Eigen::MatrixXd pinv =
+  Eigen::MatrixXd Jp_pinv =
       Jp.transpose() *
       (Jp * Jp.transpose() + params->alpha * params->alpha * identity5x5)
           .inverse();
-  Eigen::VectorXd pos_setpoint = pinv * (cart_cmd - Jr * robot_qdot_attempt);
+  Eigen::VectorXd pos_setpoint = Jp_pinv * (cart_cmd - Jr * robot_qdot_attempt);
 
   pos_setpoint = pos_setpoint.reverse();
   if (positioner_setpoint_pub_->trylock())
