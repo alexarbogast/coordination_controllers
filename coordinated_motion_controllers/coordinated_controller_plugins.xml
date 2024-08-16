@@ -6,6 +6,13 @@
       Coordinated task-space controller that maximizes manipulability using null-space projection
     </description>
   </class>
+  <class name="coordinated_motion_controllers/CoordinatedTwistDecompositionController"
+         type="coordinated_motion_controllers::CoordinatedTwistDecompositionController"
+         base_class_type="controller_interface::ControllerBase">
+    <description>
+      Coordinated task-space controller that maximizes manipulability using twist decomposition
+    </description>
+  </class>
   <class name="coordinated_motion_controllers/PositionerController"
          type="coordinated_motion_controllers::PositionerController"
          base_class_type="controller_interface::ControllerBase">

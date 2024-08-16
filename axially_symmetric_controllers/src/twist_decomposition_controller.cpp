@@ -13,9 +13,6 @@
 namespace axially_symmetric_controllers
 {
 
-static const Eigen::Matrix<double, 5, 5> identity5x5 =
-    Eigen::Matrix<double, 5, 5>::Identity();
-
 static double MANIP_THRESHOLD = 1e-10;
 
 bool TwistDecompositionController::init(

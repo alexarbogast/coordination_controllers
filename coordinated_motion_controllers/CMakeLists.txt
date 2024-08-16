@@ -51,6 +51,7 @@ include_directories(
 
 add_library(${PROJECT_NAME}
   src/coordinated_nullspace_controller.cpp
+  src/coordinated_twist_decomposition_controller.cpp
   src/positioner_controller.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen)

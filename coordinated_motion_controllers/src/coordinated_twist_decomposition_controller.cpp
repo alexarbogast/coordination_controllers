@@ -1,4 +1,4 @@
-#include <coordinated_motion_controllers/coordinated_nullspace_controller.h>
+#include <coordinated_motion_controllers/coordinated_twist_decomposition_controller.h>
 #include <axially_symmetric_controllers/utility.h>
 
 #include <urdf/model.h>
@@ -13,14 +13,14 @@
 namespace coordinated_motion_controllers
 {
 
-static const Eigen::Matrix<double, 5, 5> identity5x5 =
-    Eigen::Matrix<double, 5, 5>::Identity();
+static const Eigen::Matrix<double, 6, 6> identity6x6 =
+    Eigen::Matrix<double, 6, 6>::Identity();
 
 static const double MANIP_THRESHOLD = 1e-6;
 
 static const std::string POS_SETPOINT_NS = "pos_setpoint";
 
-bool CoordinatedNullspaceController::init(
+bool CoordinatedTwistDecompositionController::init(
     hardware_interface::PositionJointInterface* hw, ros::NodeHandle& nh)
 {
   const std::string ns = nh.getNamespace();
@@ -201,11 +201,11 @@ bool CoordinatedNullspaceController::init(
   // Setup ROS components
   sub_positioner_joint_states_ = nh.subscribe(
       positioner_topic, 1,
-      &CoordinatedNullspaceController::posJointStateCallback, this);
+      &CoordinatedTwistDecompositionController::posJointStateCallback, this);
 
-  sub_setpoint_ =
-      nh.subscribe(setpoint_topic, 1,
-                   &CoordinatedNullspaceController::setpointCallback, this);
+  sub_setpoint_ = nh.subscribe(
+      setpoint_topic, 1,
+      &CoordinatedTwistDecompositionController::setpointCallback, this);
 
   positioner_setpoint_pub_ = std::make_unique<realtime_tools::RealtimePublisher<
       coordinated_control_msgs::PositionerSetpoint>>(nh, POS_SETPOINT_NS, 1);
@@ -215,18 +215,19 @@ bool CoordinatedNullspaceController::init(
   // Dynamic reconfigure
   dyn_reconf_server_ = std::make_shared<ReconfigureServer>(nh);
   dyn_reconf_server_->setCallback(
-      std::bind(&CoordinatedNullspaceController::reconfCallback, this,
+      std::bind(&CoordinatedTwistDecompositionController::reconfCallback, this,
                 std::placeholders::_1, std::placeholders::_2));
 
   // Services
   query_pose_service_ = nh.advertiseService(
-      "query_pose", &CoordinatedNullspaceController::queryPoseService, this);
+      "query_pose", &CoordinatedTwistDecompositionController::queryPoseService,
+      this);
 
   return true;
 }
 
-void CoordinatedNullspaceController::update(const ros::Time&,
-                                            const ros::Duration& period)
+void CoordinatedTwistDecompositionController::update(
+    const ros::Time&, const ros::Duration& period)
 {
   synchronizeJointStates();  // update state
 
@@ -255,12 +256,10 @@ void CoordinatedNullspaceController::update(const ros::Time&,
   double rot_angle =
       axially_symmetric_controllers::angleBetween(aim_current, aim_desired);
 
-  Eigen::Vector2d orient_error(rot_axis.x(), rot_axis.y());
-  orient_error *= rot_angle;
-
+  Eigen::Vector3d orient_error = rot_angle * rot_axis;
   Eigen::Vector3d pos_error((setpoint->pose.p - pose_pf.p).data);
 
-  Eigen::Matrix<double, 5, 1> cart_cmd;
+  Eigen::Matrix<double, 6, 1> cart_cmd;
   cart_cmd << params->k_position * pos_error + setpoint->velocity,
       params->k_aiming * orient_error;
 
@@ -268,6 +267,7 @@ void CoordinatedNullspaceController::update(const ros::Time&,
   // manipulability maximization
   Eigen::MatrixXd J_JT = rob_jac.data * rob_jac.data.transpose();
   double manip = sqrt(J_JT.determinant());
+  std::cout << manip << std::endl << std::endl;
 
   Eigen::VectorXd manip_grad(n_robot_joints_);
   if (manip > MANIP_THRESHOLD)
@@ -292,35 +292,37 @@ void CoordinatedNullspaceController::update(const ros::Time&,
   {
     manip_grad.setZero();
   }
-  Eigen::VectorXd q_manip = manip_grad;
+  Eigen::VectorXd h = manip_grad;
+  std::cout << h << std::endl << std::endl;
 
-  // joint limit avoidance
-  Eigen::VectorXd eq = robot_state_.q.data - limits_avg_.data;
-  Eigen::VectorXd eq_b = eq.array() / limits_bounds_.data.array();
-  Eigen::VectorXd eq_trans = ((1 + eq_b.array()) / (1 - eq_b.array())).log();
-  Eigen::VectorXd pT = 2 / ((limits_bounds_.data + eq).array() *
-                            (limits_bounds_.data - eq).array());
+  /* task decomposition */
+  Eigen::Vector3d e(pose_pf.M.UnitZ().data);
+  Eigen::Matrix3d eeT = e * e.transpose();
 
-  Eigen::VectorXd qd_lim = -params->k_limits * pT.array() * eq_trans.array();
-  Eigen::VectorXd lambda = eq_b.cwiseAbs();
+  Eigen::Matrix<double, 6, 6> T = Eigen::Matrix<double, 6, 6>::Zero();
+  T.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+  T.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity() - eeT;
 
-  Eigen::VectorXd h =
-      (lambda.array() * qd_lim.array()) +
-      ((1 - lambda.array()) * q_manip.array());  // secondary task command
+  Eigen::MatrixXd Jr_rot =
+      coord_jac.data.block(3, n_pos_joints_, 3, n_robot_joints_);
+  Eigen::Vector3d perp_cmd = eeT * Jr_rot * h;
+
+  Eigen::Matrix<double, 6, 1> mod_cart_cmd = T * cart_cmd;
+  mod_cart_cmd.block<3, 1>(3, 0) += perp_cmd;
+
+  std::cout << "cart_cmd" << std::endl << cart_cmd << std::endl;
+  std::cout << "mod_cart_cmd" << std::endl << mod_cart_cmd << std::endl << std::endl;
 
   /* control */
   Eigen::MatrixXd Jr =
-      coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
+      coord_jac.data.block(0, n_pos_joints_, 6, n_robot_joints_);
+  Eigen::MatrixXd Jp = coord_jac.data.block(0, 0, 6, n_pos_joints_);
   Eigen::MatrixXd Jr_pinv = Jr.transpose() * (Jr * Jr.transpose()).inverse();
-  Eigen::MatrixXd Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
 
-  Eigen::MatrixXd I =
-      Eigen::MatrixXd::Identity(n_robot_joints_, n_robot_joints_);
   Eigen::VectorXd q_dot_pos =
       positioner_state_.readFromRT()->qdot.data.reverse();
 
-  Eigen::VectorXd joint_cmd =
-      Jr_pinv * (cart_cmd - Jp * q_dot_pos) + ((I - Jr_pinv * Jr) * h);
+  Eigen::VectorXd joint_cmd = Jr_pinv * (mod_cart_cmd - Jp * q_dot_pos);
 
   auto new_position = robot_state_.q.data + (joint_cmd * period.toSec());
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
@@ -331,13 +333,18 @@ void CoordinatedNullspaceController::update(const ros::Time&,
   /* desired positioner command */
   Eigen::VectorXd robot_qdot_attempt = (home_config_ - robot_state_.q.data);
 
+  auto Jp_t = Jp.block(0, 0, 3, n_pos_joints_);
+  Eigen::MatrixXd Jp_pinv = (Jp_t.transpose() * Jp_t).inverse() * Jp_t.transpose();
+
+  auto cmd_t = mod_cart_cmd.block(0, 0, 3, 1);
+  auto Jr_t = Jr.block(0, 0, 3, n_robot_joints_);
   // Eigen::MatrixXd Jp_pinv =
   //     Jp.transpose() *
-  //     (Jp * Jp.transpose() + params->alpha * params->alpha * identity5x5)
+  //     (Jp * Jp.transpose() + params->alpha * params->alpha * identity6x6)
   //         .inverse();
 
-  Eigen::MatrixXd Jp_pinv = (Jp.transpose() * Jp).inverse() * Jp.transpose();
-  Eigen::VectorXd pos_setpoint = Jp_pinv * (cart_cmd - Jr * robot_qdot_attempt);
+  auto test_cmd = cmd_t - Jr_t * robot_qdot_attempt;
+  Eigen::VectorXd pos_setpoint = Jp_pinv * test_cmd;
 
   pos_setpoint = pos_setpoint.reverse();
   if (positioner_setpoint_pub_->trylock())
@@ -348,7 +355,7 @@ void CoordinatedNullspaceController::update(const ros::Time&,
   }
 }
 
-void CoordinatedNullspaceController::starting(const ros::Time&)
+void CoordinatedTwistDecompositionController::starting(const ros::Time&)
 {
   synchronizeJointStates();
 
@@ -364,13 +371,13 @@ void CoordinatedNullspaceController::starting(const ros::Time&)
   positioner_setpoint_pub_->msg_.coordinated = true;
 }
 
-void CoordinatedNullspaceController::stopping(const ros::Time&)
+void CoordinatedTwistDecompositionController::stopping(const ros::Time&)
 {
   positioner_setpoint_pub_->msg_.coordinated = false;
   positioner_setpoint_pub_->unlockAndPublish();
 }
 
-void CoordinatedNullspaceController::synchronizeJointStates()
+void CoordinatedTwistDecompositionController::synchronizeJointStates()
 {
   // Synchronize the internal state with the hardware
   for (unsigned int i = 0; i < n_robot_joints_; ++i)
@@ -380,7 +387,7 @@ void CoordinatedNullspaceController::synchronizeJointStates()
   }
 }
 
-void CoordinatedNullspaceController::posJointStateCallback(
+void CoordinatedTwistDecompositionController::posJointStateCallback(
     const sensor_msgs::JointStateConstPtr& msg)
 {
   KDL::JntArrayVel pos_state(n_pos_joints_);
@@ -392,7 +399,7 @@ void CoordinatedNullspaceController::posJointStateCallback(
   positioner_state_.writeFromNonRT(pos_state);
 }
 
-void CoordinatedNullspaceController::setpointCallback(
+void CoordinatedTwistDecompositionController::setpointCallback(
     const coordinated_control_msgs::AxiallySymmetricSetpointConstPtr& msg)
 {
   Setpoint setpoint;
@@ -409,8 +416,8 @@ void CoordinatedNullspaceController::setpointCallback(
   setpoint_.writeFromNonRT(setpoint);
 }
 
-void CoordinatedNullspaceController::reconfCallback(ControllerConfig& config,
-                                                    uint16_t /*level*/)
+void CoordinatedTwistDecompositionController::reconfCallback(
+    ControllerConfig& config, uint16_t /*level*/)
 {
   DynamicParams dynamic_params;
   dynamic_params.alpha = config.alpha;
@@ -422,7 +429,7 @@ void CoordinatedNullspaceController::reconfCallback(ControllerConfig& config,
   dynamic_params_.writeFromNonRT(dynamic_params);
 }
 
-bool CoordinatedNullspaceController::queryPoseService(
+bool CoordinatedTwistDecompositionController::queryPoseService(
     coordinated_control_msgs::QueryPose::Request& req,
     coordinated_control_msgs::QueryPose::Response& resp)
 {
@@ -452,5 +459,5 @@ bool CoordinatedNullspaceController::queryPoseService(
 }  // namespace coordinated_motion_controllers
 
 PLUGINLIB_EXPORT_CLASS(
-    coordinated_motion_controllers::CoordinatedNullspaceController,
+    coordinated_motion_controllers::CoordinatedTwistDecompositionController,
     controller_interface::ControllerBase)
