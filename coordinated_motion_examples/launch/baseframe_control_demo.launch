@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="controller" default="nullspace_controller"
+       doc="One of 'nullspace_controller', 'twist_decomposition_controller'"/>
+
+  <group ns="rob1">
+    <node pkg="coordinated_motion_examples" type="baseframe_control_demo.py" name="baseframe_control_client" output="screen">
+      <param name="controller" value="$(arg controller)"/>
+      <param name="arm_id" value="rob1"/>
+    </node>
+  </group>
+  <group ns="rob2">
+    <node pkg="coordinated_motion_examples" type="baseframe_control_demo.py" name="baseframe_control_client" output="screen">
+      <param name="controller" value="$(arg controller)"/>
+      <param name="arm_id" value="rob2"/>
+    </node>
+  </group>
+</launch>

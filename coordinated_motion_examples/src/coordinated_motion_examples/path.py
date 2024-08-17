@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def linear_path(start, end, vel):
     diff = end - start
     path_len = np.linalg.norm(diff)
@@ -9,6 +10,16 @@ def linear_path(start, end, vel):
     f = lambda t: start + t * diff
     f_dot = lambda _: vel * u
     return f, f_dot, dur
+
+
+def circle(scaling):
+    def f(t):
+        return scaling * np.array([np.cos(t), np.sin(t), 0])
+
+    def f_dot(t):
+        return scaling * np.array([-np.sin(t), np.cos(t), 0])
+
+    return f, f_dot
 
 
 def hypotrochoid(scaling):

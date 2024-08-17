@@ -45,8 +45,35 @@ rob1:
 
     setpoint_topic: setpoint
 
-  coordinated_motion_controller:
+  coordinated_nullspace_controller:
     type: coordinated_motion_controllers/CoordinatedNullspaceController
+    joints:
+      - rob1_joint1
+      - rob1_joint2
+      - rob1_joint3
+      - rob1_joint4
+      - rob1_joint5
+      - rob1_joint6
+
+    alpha: 0.1
+    k_position: 10.0
+    k_aiming: 10.0
+    k_manip: 5.0
+    k_limits: 10.0
+
+    aiming_vec: [0.0, 0.0, -1.0]
+
+    positioner_link: positioner
+    base_link: rob1_base_link
+    eef_link: rob1_tool0
+
+    home_config: [-0.37, -0.85, 1.86, 0.558, 1.57, 0.189]
+
+    positioner_topic: /positioner/joint_states
+    setpoint_topic: setpoint
+
+  coordinated_twist_decomposition_controller:
+    type: coordinated_motion_controllers/CoordinatedTwistDecompositionController
     joints:
       - rob1_joint1
       - rob1_joint2
@@ -130,8 +157,35 @@ rob2:
 
     setpoint_topic: setpoint
 
-  coordinated_motion_controller:
+  coordinated_nullspace_controller:
     type: coordinated_motion_controllers/CoordinatedNullspaceController
+    joints:
+      - rob2_joint1
+      - rob2_joint2
+      - rob2_joint3
+      - rob2_joint4
+      - rob2_joint5
+      - rob2_joint6
+
+    alpha: 0.1
+    k_position: 10.0
+    k_aiming: 10.0
+    k_manip: 5.0
+    k_limits: 10.0
+
+    aiming_vec: [0.0, 0.0, -1.0]
+
+    positioner_link: positioner
+    base_link: rob2_base_link
+    eef_link: rob2_tool0
+
+    home_config: [-0.37, -0.85, 1.86, 0.558, 1.57, 0.189]
+
+    positioner_topic: /positioner/joint_states
+    setpoint_topic: setpoint
+
+  coordinated_twist_decomposition_controller:
+    type: coordinated_motion_controllers/CoordinatedTwistDecompositionController
     joints:
       - rob2_joint1
       - rob2_joint2
@@ -175,5 +229,7 @@ positioner:
       - positioner_joint
 
     coordinated_controllers:
-      - /rob1/coordinated_motion_controller
-      - /rob2/coordinated_motion_controller
+      - /rob1/coordinated_twist_decomposition_controller
+      - /rob1/coordinated_nullspace_controller
+      - /rob2/coordinated_twist_decomposition_controller
+      - /rob2/coordinated_nullspace_controller

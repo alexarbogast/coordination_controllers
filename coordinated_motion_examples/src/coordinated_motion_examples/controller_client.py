@@ -46,7 +46,7 @@ class JointControllerClient:
         self.joint_traj_client.wait_for_server()
         rospy.loginfo(f"Connected to controller: {self.name}")
 
-    def move_joint(self, joint_goal, duration):
+    def move_joint(self, joint_goal, duration, blocking=True):
         goal = FollowJointTrajectoryGoal()
         goal.trajectory.joint_names = self.joint_names
 
@@ -56,4 +56,9 @@ class JointControllerClient:
         goal.trajectory.points = [point]
 
         self.joint_traj_client.send_goal(goal)
+
+        if blocking:
+            self.wait_for_goal()
+
+    def wait_for_goal(self):
         self.joint_traj_client.wait_for_result()
