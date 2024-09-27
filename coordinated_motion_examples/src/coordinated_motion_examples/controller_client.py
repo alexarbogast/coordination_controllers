@@ -1,5 +1,6 @@
 import rospy
 import actionlib
+import numpy as np
 
 from control_msgs.msg import FollowJointTrajectoryGoal, FollowJointTrajectoryAction
 from trajectory_msgs.msg import JointTrajectoryPoint
@@ -38,6 +39,8 @@ class JointControllerClient:
         self.name = name
 
         self.joint_names = rospy.get_param(self.name + "/joints")
+        self.n_joints = len(self.joint_names)  # type: ignore
+
         self.joint_traj_client = actionlib.SimpleActionClient(
             f"{self.name}/follow_joint_trajectory",
             FollowJointTrajectoryAction,
@@ -52,6 +55,8 @@ class JointControllerClient:
 
         point = JointTrajectoryPoint()
         point.positions = joint_goal
+        point.velocities = np.zeros(self.n_joints)
+        point.accelerations = np.zeros(self.n_joints)
         point.time_from_start = rospy.Duration(duration)
         goal.trajectory.points = [point]
 
