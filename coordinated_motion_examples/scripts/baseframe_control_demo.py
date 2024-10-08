@@ -10,8 +10,8 @@ LINEAR_VELOCITY = 0.300
 
 
 class BaseframeControlDemo(ControlDemo):
-    def __init__(self):
-        super(BaseframeControlDemo, self).__init__()
+    def __init__(self, setpoint_hz=1000):
+        super(BaseframeControlDemo, self).__init__(setpoint_hz)
         self.home = [-0.368, -0.845, 1.858, 0.558, 1.571, 0.189]
 
     def run(self):

@@ -6,12 +6,14 @@
   <group ns="rob1">
     <node pkg="coordinated_motion_examples" type="coordinated_motion_demo_rob1.py" name="coordinated_motion_client" output="screen">
       <param name="controller" value="$(arg controller)"/>
+      <param name="joint_controller" value="joint_trajectory_controller"/>
       <param name="arm_id" value="rob1"/>
     </node>
   </group>
   <group ns="rob2">
     <node pkg="coordinated_motion_examples" type="coordinated_motion_demo_rob2.py" name="coordinated_motion_client" output="screen">
       <param name="controller" value="$(arg controller)"/>
+      <param name="joint_controller" value="joint_trajectory_controller"/>
       <param name="arm_id" value="rob2"/>
     </node>
   </group>
