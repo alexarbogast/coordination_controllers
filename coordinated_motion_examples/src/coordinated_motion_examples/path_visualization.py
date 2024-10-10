@@ -11,7 +11,7 @@ from geometry_msgs.msg import Point, Vector3, Quaternion
 from std_msgs.msg import ColorRGBA
 
 
-MARKER_ARRAY_TOPIC = "/visualization_marker_array"
+MARKER_ARRAY_TOPIC = "visualization_marker_array"
 
 
 class PathVisualization(object):
