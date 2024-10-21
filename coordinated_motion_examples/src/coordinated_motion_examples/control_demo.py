@@ -8,9 +8,7 @@ from coordinated_control_msgs.msg import AxiallySymmetricSetpoint
 from .controller_client import ControllerClient, JointControllerClient
 from .controller_manager_client import ControllerManagerClient
 from .path_visualization import PathVisualization
-from .path import linear_path
-
-LINEAR_VELOCITY = 0.300
+from .trajectory import *
 
 
 class ControlDemo(object):
@@ -27,40 +25,29 @@ class ControlDemo(object):
             0.007, ColorRGBA(0.96, 0.38, 0.21, 1.0), self.arm_id  # type: ignore
         )
 
+        self.static_orient = Quaternion(0.0, 1.0, 0.0, 0.0)
         self.hz = setpoint_hz
 
-    def execute_linear_path(self, start, end, vel):
-        rate = rospy.Rate(self.hz)
-        setpoint = AxiallySymmetricSetpoint()
-        setpoint.pose.orientation = Quaternion(0.0, 1.0, 0.0, 0.0)
-
-        f, f_dot, dur = linear_path(start, end, vel)
-        for t in np.linspace(0, 1, int(dur * self.hz)):
-            ft = f(t)
-            f_dott = f_dot(t)
-            setpoint.pose.position = Point(ft[0], ft[1], ft[2])
-            setpoint.velocity = Vector3(f_dott[0], f_dott[1], f_dott[2])
-            self.controller_client.publish_setpoint(setpoint)
-            rate.sleep()
-
-    def execute_path(self, f, f_dot, offset, tt):
-        rate = rospy.Rate(self.hz)
-        setpoint = AxiallySymmetricSetpoint()
-        setpoint.pose.orientation = Quaternion(0.0, 1.0, 0.0, 0.0)
-
-        # travel to start
+    def movel(self, p, tf):
         current_position = self.get_position()
         if current_position is None:
+            rospy.logerror("Failed to find current position")
             return
-        self.execute_linear_path(current_position, f(tt[0]) + offset, LINEAR_VELOCITY)
+        self.execute_linear_path(current_position, p, tf)
 
-        # follow path
-        for t in tt:
-            ft = f(t) + offset
-            f_dott = f_dot(t)
+    def execute_linear_path(self, p_start, p_end, tf):
+        tt = np.linspace(0.0, tf, int(self.hz * tf))
+        f, f_dot = linear_traj(p_start, p_end, tf)
+        self.execute_path(f(tt), f_dot(tt))
 
-            setpoint.pose.position = Point(ft[0], ft[1], ft[2])
-            setpoint.velocity = Vector3(f_dott[0], f_dott[1], f_dott[2])
+    def execute_path(self, f, f_dot):
+        rate = rospy.Rate(self.hz)
+        setpoint = AxiallySymmetricSetpoint()
+        setpoint.pose.orientation = self.static_orient
+
+        for ft, f_dott in zip(f, f_dot):
+            setpoint.pose.position = Point(*ft)
+            setpoint.velocity = Vector3(*f_dott)
             self.controller_client.publish_setpoint(setpoint)
             rate.sleep()
 
