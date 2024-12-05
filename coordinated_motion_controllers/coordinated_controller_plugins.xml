@@ -1,16 +1,16 @@
 <library path="lib/libcoordinated_motion_controllers">
-  <class name="coordinated_motion_controllers/CoordinatedNullspaceController"
-         type="coordinated_motion_controllers::CoordinatedNullspaceController"
+  <class name="coordinated_motion_controllers/PoseController"
+         type="coordinated_motion_controllers::PoseController"
          base_class_type="controller_interface::ControllerBase">
     <description>
-      Coordinated task-space controller that maximizes manipulability using null-space projection
+      Coordinated task-space controller that tracks a pose setpoint
     </description>
   </class>
-  <class name="coordinated_motion_controllers/CoordinatedTwistDecompositionController"
-         type="coordinated_motion_controllers::CoordinatedTwistDecompositionController"
+  <class name="coordinated_motion_controllers/AxiallySymmetricController"
+         type="coordinated_motion_controllers::AxiallySymmetricController"
          base_class_type="controller_interface::ControllerBase">
     <description>
-      Coordinated task-space controller that maximizes manipulability using twist decomposition
+      Coordinated task-space controller that tracks an axially-symmetric setpoint
     </description>
   </class>
   <class name="coordinated_motion_controllers/PositionerController"

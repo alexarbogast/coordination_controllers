@@ -12,9 +12,10 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   urdf
   kdl_parser
-  eigen_conversions
   sensor_msgs
   coordinated_control_msgs
+  taskspace_control_msgs
+  taskspace_controllers
   axially_symmetric_controllers
   hardware_interface
   controller_interface
@@ -32,9 +33,10 @@ catkin_package(
     roscpp
     urdf
     kdl_parser
-    eigen_conversions
     sensor_msgs
     coordinated_control_msgs
+    taskspace_control_msgs
+    taskspace_controllers
     axially_symmetric_controllers
     hardware_interface
     controller_interface
@@ -50,8 +52,9 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME}
-  src/coordinated_nullspace_controller.cpp
-  src/coordinated_twist_decomposition_controller.cpp
+  src/coordinated_controller_base.cpp
+  src/pose_controller.cpp
+  src/axially_symmetric_controller.cpp
   src/positioner_controller.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen)

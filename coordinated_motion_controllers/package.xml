@@ -11,9 +11,10 @@
   <depend>roscpp</depend>
   <depend>urdf</depend>
   <depend>kdl_parser</depend>
-  <depend>eigen_conversions</depend>
   <depend>sensor_msgs</depend>
   <depend>coordinated_control_msgs</depend>
+  <depend>taskspace_control_msgs</depend>
+  <depend>taskspace_controllers</depend>
   <depend>axially_symmetric_controllers</depend>
   <depend>hardware_interface</depend>
   <depend>controller_interface</depend>
