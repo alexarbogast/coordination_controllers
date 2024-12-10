@@ -23,7 +23,7 @@
     <node name="default_controllers_spawner" pkg="controller_manager" type="controller_manager"
           respawn="false" output="screen" args="spawn joint_state_controller joint_trajectory_controller"/>
     <node name="coordinated_controller_spawner" pkg="controller_manager" type="controller_manager"
-          respawn="false" output="screen" args="load coordinated_pose_controller"/>
+          respawn="false" output="screen" args="load coordinated_pose_controller coordinated_as_controller"/>
   </group>
 
   <group ns="rob2">
@@ -32,7 +32,7 @@
     <node name="default_controllers_spawner" pkg="controller_manager" type="controller_manager"
           respawn="false" output="screen" args="spawn joint_state_controller joint_trajectory_controller"/>
     <node name="coordinated_controller_spawner" pkg="controller_manager" type="controller_manager"
-          respawn="false" output="screen" args="load coordinated_pose_controller"/>
+          respawn="false" output="screen" args="load coordinated_pose_controller coordinated_as_controller"/>
   </group>
 
   <group ns="positioner">

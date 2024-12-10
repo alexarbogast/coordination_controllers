@@ -62,6 +62,8 @@ protected:
   // kinematics
   KDL::Chain robot_chain_, coordinated_chain_;
   std::unique_ptr<KDL::ChainFkSolverPos_recursive> coordinated_fk_solver_;
+  KDL::JntArray upper_pos_limits_;
+  KDL::JntArray lower_pos_limits_;
 
   // state feedback
   KDL::JntArrayVel robot_state_;

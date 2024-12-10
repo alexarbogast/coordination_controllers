@@ -6,8 +6,6 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
 )
 
-catkin_python_setup()
-
 catkin_package(CATKIN_DEPENDS
   roscpp
   rospy
@@ -16,7 +14,6 @@ catkin_package(CATKIN_DEPENDS
 include_directories(${catkin_INCLUDE_DIRS})
 
 catkin_install_python(PROGRAMS
-  scripts/baseframe_control_demo.py
   scripts/coordinated_motion_demo_rob1.py
   scripts/coordinated_motion_demo_rob2.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

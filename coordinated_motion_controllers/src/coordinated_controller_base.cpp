@@ -100,8 +100,8 @@ bool CoordinatedControllerBase::init(
   }
   n_robot_joints_ = joint_names.size();
 
-  KDL::JntArray upper_pos_limits(n_robot_joints_);
-  KDL::JntArray lower_pos_limits(n_robot_joints_);
+  upper_pos_limits_.resize(n_robot_joints_);
+  lower_pos_limits_.resize(n_robot_joints_);
   for (size_t i = 0; i < n_robot_joints_; ++i)
   {
     if (!urdf_model.getJoint(joint_names[i]))
@@ -111,13 +111,13 @@ bool CoordinatedControllerBase::init(
     }
     if (urdf_model.getJoint(joint_names[i])->type == urdf::Joint::CONTINUOUS)
     {
-      upper_pos_limits(i) = std::nan("0");
-      lower_pos_limits(i) = std::nan("0");
+      upper_pos_limits_(i) = std::nan("0");
+      lower_pos_limits_(i) = std::nan("0");
     }
     else
     {
-      upper_pos_limits(i) = urdf_model.getJoint(joint_names[i])->limits->upper;
-      lower_pos_limits(i) = urdf_model.getJoint(joint_names[i])->limits->lower;
+      upper_pos_limits_(i) = urdf_model.getJoint(joint_names[i])->limits->upper;
+      lower_pos_limits_(i) = urdf_model.getJoint(joint_names[i])->limits->lower;
     }
   }
 

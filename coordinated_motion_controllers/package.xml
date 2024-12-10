@@ -15,6 +15,7 @@
   <depend>coordinated_control_msgs</depend>
   <depend>taskspace_control_msgs</depend>
   <depend>taskspace_controllers</depend>
+  <depend>task_priority_controllers</depend>
   <depend>axially_symmetric_controllers</depend>
   <depend>hardware_interface</depend>
   <depend>controller_interface</depend>

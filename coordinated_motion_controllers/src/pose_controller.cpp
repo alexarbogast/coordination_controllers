@@ -14,6 +14,7 @@
 
 #include <coordinated_motion_controllers/pose_controller.h>
 #include <axially_symmetric_controllers/utility.h>
+#include "taskspace_controllers/utility.h"
 
 namespace coordinated_motion_controllers
 {
@@ -26,6 +27,28 @@ bool PoseController::init(hardware_interface::PositionJointInterface* hw,
   coordinated_jacobian_solver_ =
       std::make_unique<KDL::ChainJntToJacSolver>(coordinated_chain_);
 
+  // Load redundancy resolution objective
+  std::string objective_type = "minimize_velocity";
+  nh.getParam("objective_type", objective_type);
+
+  rr_objective_loader_ = std::make_unique<
+      pluginlib::ClassLoader<task_priority_controllers::RRObjective>>(
+      "task_priority_controllers", "task_priority_controllers::RRObjective");
+
+  try
+  {
+    rr_objective_ = rr_objective_loader_->createUniqueInstance(objective_type);
+  }
+  catch (const pluginlib::PluginlibException& e)
+  {
+    ROS_ERROR_STREAM(
+        "Failed to load redundancy resolution plugin. Execption: " << e.what());
+    return false;
+  }
+
+  rr_objective_->init(nh, robot_chain_, upper_pos_limits_, lower_pos_limits_);
+
+  // Setpoint subscriber
   sub_setpoint_ =
       nh.subscribe(setpoint_topic_, 1, &PoseController::setpointCallback, this);
 
@@ -71,7 +94,7 @@ void PoseController::update(const ros::Time&, const ros::Duration& period)
   cart_cmd += setpoint->twist;
 
   /* redundancy resolution */
-  ctrl::VectorND h = ctrl::VectorND::Zero(n_robot_joints_);  // TODO
+  ctrl::VectorND h = rr_objective_->getJointControlCmd(robot_state_);
 
   /* control */
   ctrl::MatrixND I = ctrl::MatrixND::Identity(n_robot_joints_, n_robot_joints_);

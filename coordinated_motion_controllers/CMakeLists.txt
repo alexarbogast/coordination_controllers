@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   coordinated_control_msgs
   taskspace_control_msgs
   taskspace_controllers
+  task_priority_controllers
   axially_symmetric_controllers
   hardware_interface
   controller_interface
@@ -37,6 +38,7 @@ catkin_package(
     coordinated_control_msgs
     taskspace_control_msgs
     taskspace_controllers
+    task_priority_controllers
     axially_symmetric_controllers
     hardware_interface
     controller_interface

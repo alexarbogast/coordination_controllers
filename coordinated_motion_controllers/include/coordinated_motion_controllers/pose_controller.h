@@ -16,10 +16,12 @@
 
 #include <coordinated_motion_controllers/coordinated_controller_base.h>
 #include <taskspace_controllers/setpoint.h>
+#include <task_priority_controllers/objectives/objective_plugin.h>
 
 #include <kdl/chainjnttojacsolver.hpp>
 
 #include <dynamic_reconfigure/server.h>
+#include <pluginlib/class_loader.h>
 
 namespace coordinated_motion_controllers
 {
@@ -50,6 +52,12 @@ protected:
   // setpoint
   realtime_tools::RealtimeBuffer<Setpoint> setpoint_;
   ros::Subscriber sub_setpoint_;
+
+  // redundancy resolution objective
+  std::shared_ptr<task_priority_controllers::RRObjective> rr_objective_;
+  std::unique_ptr<
+      pluginlib::ClassLoader<task_priority_controllers::RRObjective>>
+      rr_objective_loader_;
 
   // dynamic reconfigure
   struct DynamicParams
