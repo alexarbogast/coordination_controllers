@@ -95,7 +95,7 @@ void PoseController::update(const ros::Time&, const ros::Duration& period)
       ctrl::VectorND::Zero(n_robot_joints_);  // TODO
 
   ctrl::VectorND pos_setpoint =
-      ctrl::rightPinv(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
+      ctrl::leftPinv(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
 
   pos_setpoint = pos_setpoint.reverse();
   writePositionerCommand(pos_setpoint);
@@ -104,7 +104,6 @@ void PoseController::update(const ros::Time&, const ros::Duration& period)
 void PoseController::starting(const ros::Time&)
 {
   synchronizeJointStates();
-
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
   combined_positions.data << positioner_state_.readFromRT()->q.data.reverse(),
       robot_state_.q.data;

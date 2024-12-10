@@ -3,8 +3,10 @@
 import numpy as np
 import rospy
 
-from coordinated_motion_examples import ControlDemo
-from coordinated_motion_examples.trajectory import *
+from geometry_msgs.msg import Quaternion
+
+from taskspace_control_examples import ControlDemo
+from taskspace_control_examples.trajectory import *
 
 LINEAR_VELOCITY = 0.300
 
@@ -12,6 +14,8 @@ LINEAR_VELOCITY = 0.300
 class CoordinatedControlDemo(ControlDemo):
     def __init__(self, setpoint_hz=1000):
         super(CoordinatedControlDemo, self).__init__(setpoint_hz)
+        self.arm_id = rospy.get_param("~arm_id")
+        self.static_orient = Quaternion(1, 0, 0, 0)
         self.home = [-0.368, -0.845, 1.858, 0.558, 1.571, 0.189]
 
     def run(self):

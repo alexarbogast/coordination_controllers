@@ -45,8 +45,6 @@ public:
                     ros::NodeHandle& nh) override;
 
 protected:
-
-
   void synchronizeJointStates();
   void writeRobotCommand(const ctrl::VectorND& cmd);
   void writePositionerCommand(const ctrl::VectorND& cmd);

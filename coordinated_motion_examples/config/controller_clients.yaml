@@ -1,4 +1,0 @@
-coordinated_motion_client:
-  joint_space_controller: joint_trajectory_controller
-  base_frame_controller: task_space_controller
-  coordinated_controller: coordinated_motion_controller

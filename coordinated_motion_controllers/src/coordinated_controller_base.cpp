@@ -157,6 +157,8 @@ bool CoordinatedControllerBase::init(
   n_pos_joints_ = pos_joint_state->name.size();
   posJointStateCallback(pos_joint_state);
 
+  robot_state_.resize(n_robot_joints_);
+
   // Find setpoint topic
   if (!nh.getParam("setpoint_topic", setpoint_topic_))
   {
