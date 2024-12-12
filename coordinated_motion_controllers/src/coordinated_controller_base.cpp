@@ -21,6 +21,14 @@
 
 #include <pluginlib/class_list_macros.h>
 
+#define LOAD_ROS_PARAM(nh, param_name, variable)                               \
+  if (!nh.getParam(param_name, variable))                                      \
+  {                                                                            \
+    ROS_ERROR_STREAM("Failed to load parameter '"                              \
+                     << param_name << "' from the parameter server.");         \
+    return false;                                                              \
+  }
+
 namespace coordinated_motion_controllers
 {
 
@@ -33,30 +41,10 @@ bool CoordinatedControllerBase::init(
 
   // Load robot description and link nameCoordinatedControllerBases
   std::string robot_description;
-  if (!nh.getParam("/robot_description", robot_description))
-  {
-    ROS_ERROR_STREAM("Failed to load " << robot_description
-                                       << " from parameter server");
-    return false;
-  }
-  if (!nh.getParam("positioner_link", positioner_link_))
-  {
-    ROS_ERROR_STREAM("Failed to load " << nh.getNamespace() + "/positioner_link"
-                                       << " from parameter server");
-    return false;
-  }
-  if (!nh.getParam("base_link", base_link_))
-  {
-    ROS_ERROR_STREAM("Failed to load " << nh.getNamespace() + "/base_link"
-                                       << " from parameter server");
-    return false;
-  }
-  if (!nh.getParam("eef_link", eef_link_))
-  {
-    ROS_ERROR_STREAM("Failed to load " << nh.getNamespace() + "/eef_link"
-                                       << " from parameter server");
-    return false;
-  }
+  LOAD_ROS_PARAM(nh, "/robot_description", robot_description);
+  LOAD_ROS_PARAM(nh, "positioner_link", positioner_link_);
+  LOAD_ROS_PARAM(nh, "base_link", base_link_);
+  LOAD_ROS_PARAM(nh, "eef_link", eef_link_);
 
   // Initialize kinematics solvers
   urdf::Model urdf_model;
@@ -92,12 +80,7 @@ bool CoordinatedControllerBase::init(
 
   // Parse joint limits
   std::vector<std::string> joint_names;
-  if (!nh.getParam("joints", joint_names))
-  {
-    ROS_ERROR_STREAM("Failed to load " << ns << "/joints"
-                                       << " from parameter server");
-    return false;
-  }
+  LOAD_ROS_PARAM(nh, "joints", joint_names);
   n_robot_joints_ = joint_names.size();
 
   upper_pos_limits_.resize(n_robot_joints_);
@@ -139,12 +122,7 @@ bool CoordinatedControllerBase::init(
 
   // Setup positioner joint state
   std::string positioner_topic;
-  if (!nh.getParam("positioner_topic", positioner_topic))
-  {
-    ROS_ERROR_STREAM("Failed to load " << ns << "/positioner_topic"
-                                       << " from parameter server");
-    return false;
-  }
+  LOAD_ROS_PARAM(nh, "positioner_topic", positioner_topic);
 
   sensor_msgs::JointStateConstPtr pos_joint_state =
       ros::topic::waitForMessage<sensor_msgs::JointState>(positioner_topic,
@@ -160,12 +138,7 @@ bool CoordinatedControllerBase::init(
   robot_state_.resize(n_robot_joints_);
 
   // Find setpoint topic
-  if (!nh.getParam("setpoint_topic", setpoint_topic_))
-  {
-    ROS_ERROR_STREAM("Failed to load " << ns << "/setpoint_topic"
-                                       << " from parameter server");
-    return false;
-  }
+  LOAD_ROS_PARAM(nh, "setpoint_topic", setpoint_topic_);
 
   // Setup ROS components
   sub_positioner_joint_states_ =
