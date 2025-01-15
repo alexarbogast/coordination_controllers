@@ -15,6 +15,8 @@
 #pragma once
 
 #include <coordinated_motion_controllers/coordinated_controller_base.h>
+#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.h>
+
 #include <taskspace_controllers/setpoint.h>
 #include <task_priority_controllers/objectives/objective_plugin.h>
 
@@ -25,7 +27,6 @@
 
 namespace coordinated_motion_controllers
 {
-
 class PoseController
   : public coordinated_motion_controllers::CoordinatedControllerBase
 {
@@ -58,6 +59,11 @@ protected:
   std::unique_ptr<
       pluginlib::ClassLoader<task_priority_controllers::RRObjective>>
       rr_objective_loader_;
+
+  // positioner objective
+  std::shared_ptr<PositionerObjective> positioner_objective_;
+  std::unique_ptr<pluginlib::ClassLoader<PositionerObjective>>
+      positioner_objective_loader_;
 
   // dynamic reconfigure
   struct DynamicParams

@@ -29,7 +29,7 @@ find_package(Eigen3 REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES ${PROJECT_NAME}
+  LIBRARIES ${PROJECT_NAME} positioner_objectives
   CATKIN_DEPENDS
     roscpp
     urdf
@@ -53,31 +53,39 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
 )
 
+## positioner_objectives
+add_library(positioner_objectives
+  src/positioner_objectives/positioner_objective_plugin.cpp
+  src/positioner_objectives/minimize_velocity.cpp
+  src/positioner_objectives/match_configuration.cpp
+)
+target_link_libraries(positioner_objectives ${catkin_LIBRARIES} Eigen3::Eigen)
+
+## coordinated_motion_controllers
 add_library(${PROJECT_NAME}
   src/coordinated_controller_base.cpp
   src/pose_controller.cpp
   src/axially_symmetric_controller.cpp
   src/positioner_controller.cpp
+  src/positioner_objectives/positioner_objective_plugin.cpp
 )
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} Eigen3::Eigen)
-add_dependencies(${PROJECT_NAME}
-  ${catkin_EXPORTED_TARGETS}
-)
-
-add_executable(coordinated_motion_test src/test.cpp)
-target_link_libraries(coordinated_motion_test ${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 
 ## Installation
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME} # positioner_objectives
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(FILES coordinated_controller_plugins.xml
+install(
+  FILES
+    coordinated_controller_plugins.xml
+    positioner_objective_plugins.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

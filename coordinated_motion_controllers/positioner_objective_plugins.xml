@@ -1,0 +1,17 @@
+<library path="lib/libpositioner_objectives">
+  <class name="minimize_velocity"
+         type="coordinated_motion_controllers::MinimizeVelocity"
+         base_class_type="coordinated_motion_controllers::PositionerObjective">
+    <description>
+      Utilizes the positioner to minimize the robot joint velocity
+    </description>
+  </class>
+  <class name="match_configuration"
+         type="coordinated_motion_controllers::MatchConfiguration"
+         base_class_type="coordinated_motion_controllers::PositionerObjective">
+    <description>
+      Utilizes the positioner to drive the coordinated robot towards a desired
+      configuration
+    </description>
+  </class>
+</library>

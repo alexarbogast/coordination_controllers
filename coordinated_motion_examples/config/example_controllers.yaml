@@ -16,6 +16,11 @@ rob1:
     k_position: 10.0
     k_orient: 10.0
 
+    # rr_objective_type: minimize_velocity
+    # pos_objective_type: match_configuration
+    # pos_objective:
+    #   match_config: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
     positioner_topic: /positioner/joint_states
     setpoint_topic: setpoint
 
@@ -111,3 +116,5 @@ positioner:
     coordinated_controllers:
       - /rob1/coordinated_pose_controller
       - /rob2/coordinated_pose_controller
+      - /rob1/coordinated_as_controller
+      - /rob2/coordinated_as_controller

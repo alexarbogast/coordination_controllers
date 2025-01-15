@@ -19,8 +19,6 @@
 #include <kdl/tree.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 
-#include <pluginlib/class_list_macros.h>
-
 #define LOAD_ROS_PARAM(nh, param_name, variable)                               \
   if (!nh.getParam(param_name, variable))                                      \
   {                                                                            \

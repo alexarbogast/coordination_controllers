@@ -14,7 +14,6 @@
 
 #include <coordinated_motion_controllers/pose_controller.h>
 #include <axially_symmetric_controllers/utility.h>
-#include "taskspace_controllers/utility.h"
 
 namespace coordinated_motion_controllers
 {
@@ -27,26 +26,46 @@ bool PoseController::init(hardware_interface::PositionJointInterface* hw,
   coordinated_jacobian_solver_ =
       std::make_unique<KDL::ChainJntToJacSolver>(coordinated_chain_);
 
-  // Load redundancy resolution objective
-  std::string objective_type = "minimize_velocity";
-  nh.getParam("objective_type", objective_type);
-
+  // Load redundancy resolution and positioner objective
+  std::string rr_objective_type = "minimize_velocity";
+  nh.getParam("rr_objective_type", rr_objective_type);
   rr_objective_loader_ = std::make_unique<
       pluginlib::ClassLoader<task_priority_controllers::RRObjective>>(
       "task_priority_controllers", "task_priority_controllers::RRObjective");
 
+  std::string pos_objective_type = "minimize_velocity";
+  nh.getParam("pos_objective_type", pos_objective_type);
+  positioner_objective_loader_ =
+      std::make_unique<pluginlib::ClassLoader<PositionerObjective>>(
+          "coordinated_motion_controllers",
+          "coordinated_motion_controllers::PositionerObjective");
+
   try
   {
-    rr_objective_ = rr_objective_loader_->createUniqueInstance(objective_type);
+    rr_objective_ =
+        rr_objective_loader_->createUniqueInstance(rr_objective_type);
   }
   catch (const pluginlib::PluginlibException& e)
   {
     ROS_ERROR_STREAM(
-        "Failed to load redundancy resolution plugin. Execption: " << e.what());
+        "Failed to load redundancy resolution plugin. Exception: " << e.what());
+    return false;
+  }
+
+  try
+  {
+    positioner_objective_ =
+        positioner_objective_loader_->createUniqueInstance(pos_objective_type);
+  }
+  catch (const pluginlib::PluginlibException& e)
+  {
+    ROS_ERROR_STREAM(
+        "Failed to load positioner objective plugin. Exception: " << e.what());
     return false;
   }
 
   rr_objective_->init(nh, robot_chain_, upper_pos_limits_, lower_pos_limits_);
+  positioner_objective_->init(nh, robot_chain_);
 
   // Setpoint subscriber
   sub_setpoint_ =
@@ -57,7 +76,6 @@ bool PoseController::init(hardware_interface::PositionJointInterface* hw,
   dyn_reconf_server_->setCallback(std::bind(&PoseController::reconfCallback,
                                             this, std::placeholders::_1,
                                             std::placeholders::_2));
-
   return true;
 }
 
@@ -94,7 +112,8 @@ void PoseController::update(const ros::Time&, const ros::Duration& period)
   cart_cmd += setpoint->twist;
 
   /* redundancy resolution */
-  ctrl::VectorND h = rr_objective_->getJointControlCmd(robot_state_);
+  ctrl::VectorND h = ctrl::VectorND::Zero(n_robot_joints_);
+  rr_objective_->getJointControlCmd(robot_state_);
 
   /* control */
   ctrl::MatrixND I = ctrl::MatrixND::Identity(n_robot_joints_, n_robot_joints_);
@@ -115,10 +134,10 @@ void PoseController::update(const ros::Time&, const ros::Duration& period)
 
   /* desired positioner command */
   ctrl::VectorND robot_qdot_attempt =
-      ctrl::VectorND::Zero(n_robot_joints_);  // TODO
+      positioner_objective_->getJointControlCmd(robot_state_);
 
   ctrl::VectorND pos_setpoint =
-      ctrl::leftPinv(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
+      ctrl::dampedPinv(Jp, 0.1) * (cart_cmd - Jr * robot_qdot_attempt);
 
   pos_setpoint = pos_setpoint.reverse();
   writePositionerCommand(pos_setpoint);

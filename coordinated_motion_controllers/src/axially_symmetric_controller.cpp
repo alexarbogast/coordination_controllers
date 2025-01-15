@@ -76,10 +76,10 @@ void AxiallySymmetricController::update(const ros::Time&,
 
   /* desired positioner command */
   ctrl::VectorND robot_qdot_attempt =
-      ctrl::VectorND::Zero(n_robot_joints_);  // TODO
+      positioner_objective_->getJointControlCmd(robot_state_);
 
   ctrl::VectorND pos_setpoint =
-      ctrl::rightPinv(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
+      ctrl::leftPinv(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
 
   pos_setpoint = pos_setpoint.reverse();
   writePositionerCommand(pos_setpoint);

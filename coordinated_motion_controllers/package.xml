@@ -25,5 +25,6 @@
 
   <export>
     <controller_interface plugin="${prefix}/coordinated_controller_plugins.xml"/>
+    <coordinated_motion_controllers plugin="${prefix}/positioner_objective_plugins.xml"/>
   </export>
 </package>
