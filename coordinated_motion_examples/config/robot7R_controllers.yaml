@@ -8,6 +8,7 @@ rob1:
       - rob1_joint4
       - rob1_joint5
       - rob1_joint6
+      - rob1_joint7
 
     positioner_link: positioner
     base_link: rob1_base_link
@@ -33,6 +34,7 @@ rob1:
       - rob1_joint4
       - rob1_joint5
       - rob1_joint6
+      - rob1_joint7
 
     positioner_link: positioner
     base_link: rob1_base_link
@@ -53,7 +55,7 @@ rob1:
       - rob1_joint4
       - rob1_joint5
       - rob1_joint6
-
+      - rob1_joint7
 
 rob2:
   coordinated_pose_controller:
@@ -65,6 +67,7 @@ rob2:
       - rob2_joint4
       - rob2_joint5
       - rob2_joint6
+      - rob2_joint7
 
     positioner_link: positioner
     base_link: rob2_base_link
@@ -72,7 +75,7 @@ rob2:
 
     k_position: 10.0
     k_orient: 10.0
-    
+
     positioner_topic: /positioner/joint_states
     setpoint_topic: setpoint
 
@@ -85,6 +88,7 @@ rob2:
       - rob2_joint4
       - rob2_joint5
       - rob2_joint6
+      - rob2_joint7
 
     positioner_link: positioner
     base_link: rob2_base_link
@@ -105,6 +109,7 @@ rob2:
       - rob2_joint4
       - rob2_joint5
       - rob2_joint6
+      - rob2_joint7
 
 
 positioner:

@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
-<robot name="two_robot6R" xmlns:xacro="http://ros.org/wiki/xacro">
+<robot name="two_robot7R" xmlns:xacro="http://ros.org/wiki/xacro">
   <xacro:property name="radius" value="0.5"/>
   <xacro:property name="spacing" value="0.52"/>
 
-  <xacro:include filename="$(find taskspace_control_examples)/urdf/robot6R_macro.xacro"/>
-  <xacro:robot6R_macro prefix="rob1_"/>
-  <xacro:robot6R_macro prefix="rob2_"/>
+  <xacro:include filename="$(find taskspace_control_examples)/urdf/robot7R_macro.xacro"/>
+  <xacro:robot7R_macro prefix="rob1_"/>
+  <xacro:robot7R_macro prefix="rob2_"/>
 
   <xacro:include filename="$(find coordinated_motion_examples)/urdf/positioner1R_macro.xacro"/>
   <xacro:positioner1R_macro/>
@@ -13,6 +13,9 @@
   <!-- colors -->
   <material name="grey">
     <color rgba="0.7 0.7 0.7 1.0"/>
+  </material>
+  <material name="cream">
+    <color rgba="1.0 0.99 0.81 1.0"/>
   </material>
 
   <!-- Connect to world -->

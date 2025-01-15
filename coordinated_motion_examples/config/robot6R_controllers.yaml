@@ -1,0 +1,128 @@
+rob1:
+  coordinated_pose_controller:
+    type: coordinated_motion_controllers/PoseController
+    joints:
+      - rob1_joint1
+      - rob1_joint2
+      - rob1_joint3
+      - rob1_joint4
+      - rob1_joint5
+      - rob1_joint6
+
+    positioner_link: positioner
+    base_link: rob1_base_link
+    eef_link: rob1_tool
+
+    k_position: 10.0
+    k_orient: 10.0
+
+    rr_objective_type: minimize_velocity
+    # rr_objective_type: maximize_manipulability
+    # rr_objective:
+    #   k_manip: 10.0
+    # rr_objective_type: avoid_joint_limits
+    # rr_objective:
+    #   K_limits: 10.0
+
+    pos_objective_type: minimize_velocity
+    # pos_objective_type: match_configuration
+    # pos_objective:
+    #   match_config: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    positioner_topic: /positioner/joint_states
+    setpoint_topic: setpoint
+
+  coordinated_as_controller:
+    type: coordinated_motion_controllers/AxiallySymmetricController
+    joints:
+      - rob1_joint1
+      - rob1_joint2
+      - rob1_joint3
+      - rob1_joint4
+      - rob1_joint5
+      - rob1_joint6
+
+    positioner_link: positioner
+    base_link: rob1_base_link
+    eef_link: rob1_tool
+
+    k_position: 10.0
+    k_orient: 10.0
+
+    positioner_topic: /positioner/joint_states
+    setpoint_topic: setpoint
+
+  joint_trajectory_controller:
+    type: position_controllers/JointTrajectoryController
+    joints:
+      - rob1_joint1
+      - rob1_joint2
+      - rob1_joint3
+      - rob1_joint4
+      - rob1_joint5
+      - rob1_joint6
+
+
+rob2:
+  coordinated_pose_controller:
+    type: coordinated_motion_controllers/PoseController
+    joints:
+      - rob2_joint1
+      - rob2_joint2
+      - rob2_joint3
+      - rob2_joint4
+      - rob2_joint5
+      - rob2_joint6
+
+    positioner_link: positioner
+    base_link: rob2_base_link
+    eef_link: rob2_tool
+
+    k_position: 10.0
+    k_orient: 10.0
+
+    positioner_topic: /positioner/joint_states
+    setpoint_topic: setpoint
+
+  coordinated_as_controller:
+    type: coordinated_motion_controllers/AxiallySymmetricController
+    joints:
+      - rob2_joint1
+      - rob2_joint2
+      - rob2_joint3
+      - rob2_joint4
+      - rob2_joint5
+      - rob2_joint6
+
+    positioner_link: positioner
+    base_link: rob2_base_link
+    eef_link: rob2_tool
+
+    k_position: 10.0
+    k_orient: 10.0
+
+    positioner_topic: /positioner/joint_states
+    setpoint_topic: setpoint
+
+  joint_trajectory_controller:
+    type: position_controllers/JointTrajectoryController
+    joints:
+      - rob2_joint1
+      - rob2_joint2
+      - rob2_joint3
+      - rob2_joint4
+      - rob2_joint5
+      - rob2_joint6
+
+
+positioner:
+  positioner_controller:
+    type: coordinated_motion_controllers/PositionerController
+    joints:
+      - positioner_joint
+
+    coordinated_controllers:
+      - /rob1/coordinated_pose_controller
+      - /rob2/coordinated_pose_controller
+      - /rob1/coordinated_as_controller
+      - /rob2/coordinated_as_controller
