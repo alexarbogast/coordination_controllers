@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="controller" default="coordinated_pose_controller"
+  <arg name="controller" default="coordinated_as_controller"
        doc="One of 'coordinated_pose_controller', 'coordinated_as_controller'"/>
 
   <group ns="rob1">
