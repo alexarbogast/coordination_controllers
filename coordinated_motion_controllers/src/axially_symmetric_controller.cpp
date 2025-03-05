@@ -55,7 +55,10 @@ void AxiallySymmetricController::update(const ros::Time&,
       params->k_orient * orient_error;
 
   /* redundancy resolution */
-  ctrl::VectorND h = ctrl::VectorND::Zero(n_robot_joints_);  // TODO
+  ctrl::VectorND h = rr_objective_->getJointControlCmd(robot_state_);
+  // TODO: redundancy resolution objectives other than 0, cause instability
+  // issues
+  // ctrl::VectorND h = ctrl::VectorND::Zero(n_robot_joints_);
 
   /* control */
   ctrl::MatrixND I = ctrl::MatrixND::Identity(n_robot_joints_, n_robot_joints_);
