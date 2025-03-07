@@ -13,5 +13,13 @@
       Utilizes the positioner to drive the coordinated robot towards a desired
       configuration
     </description>
+    </class>
+  <class name="taskspace_anchor"
+         type="coordinated_motion_controllers::TaskspaceAnchor"
+         base_class_type="coordinated_motion_controllers::PositionerObjective">
+    <description>
+      The positioner moves as if there is a virtual spring between the end of
+      the robot and a fixed point in space
+    </description>
   </class>
 </library>

@@ -49,6 +49,14 @@ rob1:
     k_position: 10.0
     k_orient: 10.0
 
+    rr_objective_type: maximize_manipulability
+    rr_objective:
+      k_manip: 10.0
+
+    pos_objective_type: taskspace_anchor
+    pos_objective:
+      match_config: [0.0, -1.125, 2.275, -1.15, 1.571, 0.0]
+
     positioner_topic: /positioner/joint_states
     setpoint_topic: setpoint
 
@@ -100,6 +108,14 @@ rob2:
 
     k_position: 10.0
     k_orient: 10.0
+
+    rr_objective_type: maximize_manipulability
+    rr_objective:
+      k_manip: 10.0
+
+    pos_objective_type: taskspace_anchor
+    pos_objective:
+      match_config: [0.0, -1.125, 2.275, -1.15, 1.571, 0.0]
 
     positioner_topic: /positioner/joint_states
     setpoint_topic: setpoint

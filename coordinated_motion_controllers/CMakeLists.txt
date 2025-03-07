@@ -27,6 +27,10 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Eigen3 REQUIRED)
 
+generate_dynamic_reconfigure_options(
+  cfg/TaskspaceAnchor.cfg
+)
+
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME} positioner_objectives
@@ -58,8 +62,10 @@ add_library(positioner_objectives
   src/positioner_objectives/positioner_objective_plugin.cpp
   src/positioner_objectives/minimize_velocity.cpp
   src/positioner_objectives/match_configuration.cpp
+  src/positioner_objectives/taskspace_anchor.cpp
 )
 target_link_libraries(positioner_objectives ${catkin_LIBRARIES} Eigen3::Eigen)
+add_dependencies(positioner_objectives ${catkin_EXPORTED_TARGETS})
 
 ## coordinated_motion_controllers
 add_library(${PROJECT_NAME}
@@ -77,7 +83,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 
-install(TARGETS ${PROJECT_NAME} # positioner_objectives
+install(TARGETS ${PROJECT_NAME} positioner_objectives
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
