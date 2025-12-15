@@ -14,21 +14,18 @@
 
 #pragma once
 
-#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.h>
+#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp>
 
 namespace coordinated_motion_controllers
 {
-class MatchConfiguration : public PositionerObjective
+
+class MinimizeVelocity : public PositionerObjective
 {
 public:
-  MatchConfiguration() = default;
+  MinimizeVelocity() = default;
 
-  virtual bool init(ros::NodeHandle& nh, const KDL::Chain& chain) override;
   virtual ctrl::VectorND
   getJointControlCmd(const KDL::JntArrayVel& joint_state) override;
-
-protected:
-  KDL::JntArray config_;
 };
 
 }  // namespace coordinated_motion_controllers

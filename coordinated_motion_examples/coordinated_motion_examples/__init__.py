@@ -1,0 +1,1 @@
+from coordinated_motion_examples.coordinated_control_demo import CoordinatedControlDemo

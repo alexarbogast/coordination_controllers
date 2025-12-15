@@ -1,0 +1,39 @@
+pose_controller:
+  setpoint_topic: {
+    type: string,
+    description: "The name of the topic containing the setpoint",
+    read_only: true,
+  }
+  rr_objective_type: {
+      type: string,
+      description: "The name of the redundancy resolution objective",
+      read_only: true,
+      validation: {
+        one_of<>: [[
+          "minimize_velocity",
+          "maximize_manipulability",
+          "avoid_joint_limits",
+          "match_configuration"
+        ]]
+      }
+    }
+  pos_objective_type: {
+    type: string,
+    description: "The name of the reconfiguration objective",
+    read_only: true,
+    validation: {
+      one_of<>: [[
+        "minimize_velocity",
+        "match_configuration",
+        "position_attractor",
+      ]]
+    }
+  }
+  k_position: {
+    type: double,
+    description: "The position gain",
+  }
+  k_orient: {
+    type: double,
+    description: "The orientation gain",
+  }

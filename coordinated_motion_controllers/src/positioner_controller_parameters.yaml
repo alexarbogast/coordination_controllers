@@ -1,0 +1,24 @@
+positioner_controller:
+  joints: {
+    type: string_array,
+    description: "Name of the joints to control",
+    validation: {
+      not_empty<>: []
+    },
+    read_only: true
+  }
+  command_interfaces: {
+    type: string_array,
+    description: "Names of the interfaces to command",
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+      subset_of<>: [["position", "velocity"]],
+    },
+    read_only: true
+  }
+  coordinated_controllers: {
+    type: string_array,
+    description: "Names of the coordinated robot controllers",
+    read_only: true
+  }

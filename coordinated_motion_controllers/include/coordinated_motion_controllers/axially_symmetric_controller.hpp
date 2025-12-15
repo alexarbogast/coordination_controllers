@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <coordinated_motion_controllers/pose_controller.h>
+#include <coordinated_motion_controllers/pose_controller.hpp>
 
 namespace coordinated_motion_controllers
 {
@@ -23,7 +23,8 @@ class AxiallySymmetricController
   : public coordinated_motion_controllers::PoseController
 {
 public:
-  virtual void update(const ros::Time&, const ros::Duration& period) override;
+  virtual controller_interface::return_type
+  update(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 };
 
 }  // namespace coordinated_motion_controllers

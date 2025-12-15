@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.h>
+#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp>
 
 namespace coordinated_motion_controllers
 {
 
-bool PositionerObjective::init(ros::NodeHandle& nh, const KDL::Chain& chain)
+bool PositionerObjective::init(
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+    const KDL::Chain& chain)
 {
   robot_chain_ = chain;
   n_joints_ = robot_chain_.getNrOfJoints();

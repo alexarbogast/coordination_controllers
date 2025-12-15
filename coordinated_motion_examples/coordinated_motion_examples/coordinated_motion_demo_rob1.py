@@ -2,47 +2,26 @@
 
 import numpy as np
 import quaternion
-import rospy
+import rclpy
+import threading
 
-from taskspace_control_examples import ControlDemo
 from taskspace_control_examples.trajectory import *
-
-LINEAR_VELOCITY = 0.300
+from coordinated_motion_examples import CoordinatedControlDemo
 
 robot_params = {
-    "robot6R": {
-        "orient": np.quaternion(1.0, 0.0, 0.0, 0.0),
-        "home": [0.0, -1.125, 2.275, -1.15, 1.571, 0.0],
-    },
-    "robot7R": {
-        "orient": np.quaternion(0.0, 1.0, 0.0, 0.0),
-        "home": [0.0, 0.0, 0.0, -np.pi / 2, 0.0, np.pi / 2, 0.0],
-    },
+    "robot6R": {"orient": np.quaternion(1.0, 0.0, 0.0, 0.0)},
+    "robot7R": {"orient": np.quaternion(0.0, 1.0, 0.0, 0.0)},
 }
 
 
-class CoordinatedControlDemo(ControlDemo):
-    def __init__(self, setpoint_hz=1000):
-        super(CoordinatedControlDemo, self).__init__(setpoint_hz)
-        self.arm_id = rospy.get_param("~arm_id")
+class CoordinatedControlDemoRob1(CoordinatedControlDemo):
+    """
+    Routines are selected for all robots in `coordinated_control_demo.py`
+    """
 
-        robot_type = rospy.get_param("robot_type", "robot6R")
-        self.static_orient = robot_params[robot_type]["orient"]
-        self.home = robot_params[robot_type]["home"]
-
-    def run(self):
-        self.start_joint_control()
-        self.joint_controller_client.move_joint(self.home, 1.0)
-
-        self.start_taskspace_control()
-
-        self.small_circle()
-        self.small_hypotrochoid()
-        self.hypotrochoid()
-        self.circle()
-
-        self.start_joint_control()
-        self.joint_controller_client.move_joint(self.home, 1.0)
+    def __init__(self, node_name: str, setpoint_hz=250):
+        super().__init__(node_name, setpoint_hz)
+        self.static_orient = robot_params[self.robot_type]["orient"]
 
     def small_circle(self):
         tf = 7
@@ -117,11 +96,19 @@ class CoordinatedControlDemo(ControlDemo):
         self.path_viz.reset()
 
 
-if __name__ == "__main__":
-    rospy.init_node("coordinated_control_client")
+def main(args=None):
+    rclpy.init(args=args)
+    node = CoordinatedControlDemoRob1("rob1_coordinated_control_demo")
 
     try:
-        demo = CoordinatedControlDemo()
-        demo.run()
-    except rospy.ROSInterruptException:
-        pass
+        threading.Thread(target=rclpy.spin, args=(node,), daemon=True).start()
+        node.run()
+    except Exception as e:
+        node.get_logger().error(f"Exception in demo: {e}")
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()

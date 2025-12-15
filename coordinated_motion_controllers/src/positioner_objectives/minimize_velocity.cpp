@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <coordinated_motion_controllers/positioner_objectives/minimize_velocity.h>
+#include <coordinated_motion_controllers/positioner_objectives/minimize_velocity.hpp>
 
 namespace coordinated_motion_controllers
 {
@@ -25,6 +25,6 @@ MinimizeVelocity::getJointControlCmd(const KDL::JntArrayVel& joint_state)
 
 }  // namespace coordinated_motion_controllers
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::MinimizeVelocity,
                        coordinated_motion_controllers::PositionerObjective)

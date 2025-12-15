@@ -36,4 +36,12 @@
     <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
     <axis xyz="0 0 1"/>
   </joint>
+
+  <!-- ROS2 control -->
+  <xacro:include filename="$(find taskspace_control_examples)/urdf/robot7R.ros2_control.xacro"/>
+  <xacro:robot7R_ros2_control prefix="rob1_"/>
+  <xacro:robot7R_ros2_control prefix="rob2_"/>
+
+  <xacro:include filename="$(find coordinated_motion_examples)/urdf/positioner1R.ros2_control.xacro"/>
+  <xacro:positioner_ros2_control prefix=""/>
 </robot>

@@ -1,13 +1,66 @@
-rob1:
-  coordinated_pose_controller:
-    type: coordinated_motion_controllers/PoseController
-    joints:
-      - rob1_joint1
-      - rob1_joint2
-      - rob1_joint3
-      - rob1_joint4
-      - rob1_joint5
-      - rob1_joint6
+# 6R robot simulation hardware
+controller_manager:
+  ros__parameters:
+    update_rate: 250  # Hz
+    rob1_coordinated_pose_controller:
+      type: coordinated_motion_controllers/PoseController
+    rob1_coordinated_as_controller:
+      type: coordinated_motion_controllers/AxiallySymmetricController
+    rob2_coordinated_pose_controller:
+      type: coordinated_motion_controllers/PoseController
+    rob2_coordinated_as_controller:
+      type: coordinated_motion_controllers/AxiallySymmetricController
+    positioner_controller:
+      type: coordinated_motion_controllers/PositionerController
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+rob1_coordinated_pose_controller:
+  ros__parameters:
+    positioner_joints:
+      - positioner_joint
+
+    command_interfaces:
+      - position
+
+    positioner_link: positioner
+    base_link: rob1_base_link
+    eef_link: rob1_tool
+
+    k_position: 10.0
+    k_orient: 10.0
+
+    rr_objective_type: minimize_velocity # (default)
+
+    # rr_objective_type: maximize_manipulability
+    # k_manip: 10.0
+    #
+    # rr_objective_type: avoid_joint_limits
+    # k_limits: 10.0
+
+    # rr_objective_type: match_configuration
+    # match_config: [0.0, -1.125, 2.275, -1.15, 1.571, 0.0]
+    # k_config: 10.0
+
+    pos_objective_type: minimize_velocity
+    # pos_objective_type: match_configuration
+    # pos_objective:
+    #   match_config: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    # pos_objective_type: position_attractor
+    # pos_objective:
+    #   match_config: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    positioner_topic: /joint_states
+    setpoint_topic: setpoint
+
+rob1_coordinated_as_controller:
+  ros__parameters:
+    positioner_joints:
+      - positioner_joint
+
+    command_interfaces:
+      - position
 
     positioner_link: positioner
     base_link: rob1_base_link
@@ -17,70 +70,46 @@ rob1:
     k_orient: 10.0
 
     rr_objective_type: minimize_velocity
-    # rr_objective_type: maximize_manipulability
-    # rr_objective:
-    #   k_manip: 10.0
-    # rr_objective_type: avoid_joint_limits
-    # rr_objective:
-    #   K_limits: 10.0
 
+    pos_objective_type: position_attractor
+    k_attract: 1.0
+    attractor: [0.25, 0.0, 0.0]
+
+    positioner_topic: /joint_states
+    setpoint_topic: setpoint
+
+
+rob2_coordinated_pose_controller:
+  ros__parameters:
+    positioner_joints:
+      - positioner_joint
+
+    command_interfaces:
+      - position
+
+    positioner_link: positioner
+    base_link: rob2_base_link
+    eef_link: rob2_tool
+
+    k_position: 10.0
+    k_orient: 10.0
+
+    positioner_topic: /positioner/joint_states
+    setpoint_topic: setpoint
+
+    rr_objective_type: minimize_velocity
     pos_objective_type: minimize_velocity
-    # pos_objective_type: match_configuration
-    # pos_objective:
-    #   match_config: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-    positioner_topic: /positioner/joint_states
+    positioner_topic: /joint_states
     setpoint_topic: setpoint
 
-  coordinated_as_controller:
-    type: coordinated_motion_controllers/AxiallySymmetricController
-    joints:
-      - rob1_joint1
-      - rob1_joint2
-      - rob1_joint3
-      - rob1_joint4
-      - rob1_joint5
-      - rob1_joint6
+rob2_coordinated_as_controller:
+  ros__parameters:
+    positioner_joints:
+      - positioner_joint
 
-    positioner_link: positioner
-    base_link: rob1_base_link
-    eef_link: rob1_tool
-
-    k_position: 10.0
-    k_orient: 10.0
-
-    rr_objective_type: maximize_manipulability
-    rr_objective:
-      k_manip: 10.0
-
-    pos_objective_type: taskspace_anchor
-    pos_objective:
-      match_config: [0.0, -1.125, 2.275, -1.15, 1.571, 0.0]
-
-    positioner_topic: /positioner/joint_states
-    setpoint_topic: setpoint
-
-  joint_trajectory_controller:
-    type: position_controllers/JointTrajectoryController
-    joints:
-      - rob1_joint1
-      - rob1_joint2
-      - rob1_joint3
-      - rob1_joint4
-      - rob1_joint5
-      - rob1_joint6
-
-
-rob2:
-  coordinated_pose_controller:
-    type: coordinated_motion_controllers/PoseController
-    joints:
-      - rob2_joint1
-      - rob2_joint2
-      - rob2_joint3
-      - rob2_joint4
-      - rob2_joint5
-      - rob2_joint6
+    command_interfaces:
+      - position
 
     positioner_link: positioner
     base_link: rob2_base_link
@@ -89,56 +118,25 @@ rob2:
     k_position: 10.0
     k_orient: 10.0
 
-    positioner_topic: /positioner/joint_states
+    rr_objective_type: minimize_velocity
+
+    pos_objective_type: position_attractor
+    k_attract: 1.0
+    attractor: [0.25, 0.0, 0.0]
+
+    positioner_topic: /joint_states
     setpoint_topic: setpoint
 
-  coordinated_as_controller:
-    type: coordinated_motion_controllers/AxiallySymmetricController
-    joints:
-      - rob2_joint1
-      - rob2_joint2
-      - rob2_joint3
-      - rob2_joint4
-      - rob2_joint5
-      - rob2_joint6
-
-    positioner_link: positioner
-    base_link: rob2_base_link
-    eef_link: rob2_tool
-
-    k_position: 10.0
-    k_orient: 10.0
-
-    rr_objective_type: maximize_manipulability
-    rr_objective:
-      k_manip: 10.0
-
-    pos_objective_type: taskspace_anchor
-    pos_objective:
-      match_config: [0.0, -1.125, 2.275, -1.15, 1.571, 0.0]
-
-    positioner_topic: /positioner/joint_states
-    setpoint_topic: setpoint
-
-  joint_trajectory_controller:
-    type: position_controllers/JointTrajectoryController
-    joints:
-      - rob2_joint1
-      - rob2_joint2
-      - rob2_joint3
-      - rob2_joint4
-      - rob2_joint5
-      - rob2_joint6
-
-
-positioner:
-  positioner_controller:
-    type: coordinated_motion_controllers/PositionerController
+positioner_controller:
+  ros__parameters:
     joints:
       - positioner_joint
 
+    command_interfaces:
+      - position
+
     coordinated_controllers:
-      - /rob1/coordinated_pose_controller
-      - /rob2/coordinated_pose_controller
-      - /rob1/coordinated_as_controller
-      - /rob2/coordinated_as_controller
+      - rob1_coordinated_pose_controller
+      - rob2_coordinated_pose_controller
+      - rob1_coordinated_as_controller
+      - rob2_coordinated_as_controller

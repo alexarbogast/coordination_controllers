@@ -14,26 +14,27 @@
 
 #pragma once
 
-#include <ros/ros.h>
-#include <taskspace_controllers/utility.h>
+#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp>
 
-#include <kdl/chain.hpp>
-#include <kdl/jntarrayvel.hpp>
+#include <coordinated_motion_controllers/match_configuration_parameters.hpp>
 
 namespace coordinated_motion_controllers
 {
-class PositionerObjective
+class MatchConfiguration : public PositionerObjective
 {
 public:
-  PositionerObjective() = default;
+  MatchConfiguration() = default;
 
-  virtual bool init(ros::NodeHandle& nh, const KDL::Chain& chain);
+  virtual bool init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+                    const KDL::Chain& chain) override;
   virtual ctrl::VectorND
-  getJointControlCmd(const KDL::JntArrayVel& joint_state) = 0;
+  getJointControlCmd(const KDL::JntArrayVel& joint_state) override;
 
 protected:
-  unsigned int n_joints_;
-  KDL::Chain robot_chain_;
+  std::shared_ptr<match_configuration::ParamListener> param_listener_;
+  match_configuration::Params params_;
+
+  KDL::JntArray config_;
 };
 
 }  // namespace coordinated_motion_controllers
