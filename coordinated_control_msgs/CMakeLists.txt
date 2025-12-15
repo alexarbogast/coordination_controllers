@@ -1,23 +1,17 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(coordinated_control_msgs)
 
-find_package(catkin REQUIRED COMPONENTS
-  std_msgs
-  message_generation
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
+
+set(msg_files "msg/PositionerSetpoint.msg")
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  ${msg_files}
+  DEPENDENCIES std_msgs
 )
 
-add_message_files(
-  DIRECTORY msg
-  FILES
-    PositionerSetpoint.msg
-)
+ament_export_dependencies(rosidl_default_runtime)
 
-generate_messages(
-  DEPENDENCIES
-    std_msgs
-)
-
-catkin_package(
-  CATKIN_DEPENDS
-    message_runtime
-)
+ament_package()

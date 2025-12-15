@@ -193,6 +193,6 @@ void PoseController::setpointCallback(
 
 }  // namespace coordinated_motion_controllers
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::PoseController,
                        controller_interface::ControllerBase)

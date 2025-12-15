@@ -25,6 +25,6 @@ MinimizeVelocity::getJointControlCmd(const KDL::JntArrayVel& joint_state)
 
 }  // namespace coordinated_motion_controllers
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::MinimizeVelocity,
                        coordinated_motion_controllers::PositionerObjective)

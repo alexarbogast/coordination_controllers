@@ -14,7 +14,8 @@
 
 #pragma once
 
-#include <ros/ros.h>
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
+
 #include <taskspace_controllers/utility.h>
 
 #include <kdl/chain.hpp>
@@ -27,7 +28,8 @@ class PositionerObjective
 public:
   PositionerObjective() = default;
 
-  virtual bool init(ros::NodeHandle& nh, const KDL::Chain& chain);
+  virtual bool init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+                    const KDL::Chain& chain);
   virtual ctrl::VectorND
   getJointControlCmd(const KDL::JntArrayVel& joint_state) = 0;
 

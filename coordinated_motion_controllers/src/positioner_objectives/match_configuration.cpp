@@ -19,31 +19,39 @@ const static std::string CONFIG_PARAM = "match_config";
 namespace coordinated_motion_controllers
 {
 
-bool MatchConfiguration::init(ros::NodeHandle& nh, const KDL::Chain& chain)
+bool MatchConfiguration::init(
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+    const KDL::Chain& chain)
 {
-  if (!PositionerObjective::init(nh, chain))
+  if (!PositionerObjective::init(node, chain))
   {
     return false;
   }
 
-  // Read home configuration from ros parameters
-  ros::NodeHandle pnh(nh, "pos_objective");
-  std::vector<double> home_config;
-  if (!pnh.getParam(CONFIG_PARAM, home_config))
+  try
   {
-    ROS_ERROR_STREAM("Failed to load " << pnh.getNamespace() << "/"
-                                       << CONFIG_PARAM
-                                       << " from parameter server");
+    param_listener_ =
+        std::make_shared<match_configuration::ParamListener>(node);
+  }
+  catch (const std::exception& e)
+  {
+    fprintf(stderr,
+            "Exception thrown during positioner objective init with message: "
+            "%s \n",
+            e.what());
     return false;
   }
+
+  params_ = param_listener_->get_params();
   config_.data = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(
-      home_config.data(), home_config.size());
+      params_.match_config.data(), params_.match_config.size());
 
-  if (home_config.size() != n_joints_)
+  if (params_.match_config.size() != n_joints_)
   {
-    ROS_ERROR_STREAM("Number of joints in " << pnh.getNamespace() << "/"
-                                            << CONFIG_PARAM
-                                            << " does not match robot chain");
+    const auto msg = std::string("Number of joints in ") +
+                     node->get_namespace() + "/" + CONFIG_PARAM +
+                     " does not match robot chain";
+    RCLCPP_ERROR(node->get_logger(), "%s", msg.c_str());
     return false;
   }
   return true;
@@ -57,6 +65,6 @@ MatchConfiguration::getJointControlCmd(const KDL::JntArrayVel& joint_state)
 
 }  // namespace coordinated_motion_controllers
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::MatchConfiguration,
                        coordinated_motion_controllers::PositionerObjective)
