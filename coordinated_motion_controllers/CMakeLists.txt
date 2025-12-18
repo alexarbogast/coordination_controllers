@@ -27,6 +27,12 @@ generate_parameter_library(
   src/positioner_objectives/match_configuration_parameters.yaml
 )
 
+## coordinated controller parameters
+generate_parameter_library(
+  coordinated_controller_base_parameters
+  src/coordinated_controller_base_parameters.yaml
+)
+
 include_directories(
   include
   ${EIGEN3_INCLUDE_DIRS}
@@ -66,10 +72,13 @@ pluginlib_export_plugin_description_file(
 ## coordinated_motion_controllers
 add_library(${PROJECT_NAME} SHARED
   src/coordinated_controller_base.cpp
-  src/pose_controller.cpp
-  src/axially_symmetric_controller.cpp
-  src/positioner_controller.cpp
-  src/positioner_objectives/positioner_objective_plugin.cpp
+  # src/pose_controller.cpp
+  # src/axially_symmetric_controller.cpp
+  # src/positioner_controller.cpp
+  # src/positioner_objectives/positioner_objective_plugin.cpp
+)
+target_link_libraries(${PROJECT_NAME}
+  coordinated_controller_base_parameters
 )
 ament_target_dependencies(${PROJECT_NAME}
   rclcpp

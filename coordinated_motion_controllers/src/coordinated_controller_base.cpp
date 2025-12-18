@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include <coordinated_motion_controllers/coordinated_controller_base.h>
-#include <axially_symmetric_controllers/utility.h>
+#include <axially_symmetric_controllers/utility.hpp>
 
 #include <urdf/model.h>
 #include <kdl/tree.hpp>
