@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <coordinated_motion_controllers/axially_symmetric_controller.h>
-#include <axially_symmetric_controllers/utility.h>
+#include <coordinated_motion_controllers/axially_symmetric_controller.hpp>
+#include <axially_symmetric_controllers/utility.hpp>
 
 namespace coordinated_motion_controllers
 {

@@ -17,11 +17,11 @@
 #include <unordered_map>
 #include <kdl/jntarray.hpp>
 
-#include <coordinated_control_msgs/PositionerSetpoint.h>
+#include <coordinated_control_msgs/msg/positioner_setpoint.hpp>
 #include <realtime_tools/realtime_buffer.h>
 
-#include <controller_interface/controller.h>
-#include <hardware_interface/joint_command_interface.h>
+#include <controller_interface/controller_interface.hpp>
+// #include <hardware_interface/joint_command_interface.h>
 
 namespace coordinated_motion_controllers
 {

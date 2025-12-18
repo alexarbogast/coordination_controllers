@@ -14,27 +14,18 @@
 
 #pragma once
 
-#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.h>
-
-#include <coordinated_motion_controllers/match_configuration_parameters.hpp>
+#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp>
 
 namespace coordinated_motion_controllers
 {
-class MatchConfiguration : public PositionerObjective
+
+class MinimizeVelocity : public PositionerObjective
 {
 public:
-  MatchConfiguration() = default;
+  MinimizeVelocity() = default;
 
-  virtual bool init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
-                    const KDL::Chain& chain) override;
   virtual ctrl::VectorND
   getJointControlCmd(const KDL::JntArrayVel& joint_state) override;
-
-protected:
-  std::shared_ptr<match_configuration::ParamListener> param_listener_;
-  match_configuration::Params params_;
-
-  KDL::JntArray config_;
 };
 
 }  // namespace coordinated_motion_controllers

@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.h>
-#include <coordinated_motion_controllers/TaskspaceAnchorConfig.h>
+#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp>
+// #include <coordinated_motion_controllers/TaskspaceAnchorConfig.h>
 
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainjnttojacsolver.hpp>

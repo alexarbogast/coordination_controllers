@@ -14,15 +14,15 @@
 
 #pragma once
 
-#include <coordinated_motion_controllers/coordinated_controller_base.h>
-#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.h>
+#include <coordinated_motion_controllers/coordinated_controller_base.hpp>
+#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp>
 
-#include <taskspace_controllers/setpoint.h>
-#include <task_priority_controllers/objectives/objective_plugin.h>
+#include <taskspace_controllers/setpoint.hpp>
+#include <task_priority_controllers/objectives/objective_plugin.hpp>
 
 #include <kdl/chainjnttojacsolver.hpp>
 
-#include <dynamic_reconfigure/server.h>
+// #include <dynamic_reconfigure/server.h>
 #include <pluginlib/class_loader.h>
 
 namespace coordinated_motion_controllers

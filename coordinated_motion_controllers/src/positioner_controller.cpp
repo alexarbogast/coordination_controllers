@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <coordinated_motion_controllers/positioner_controller.h>
+#include <coordinated_motion_controllers/positioner_controller.hpp>
 
 #include <pluginlib/class_list_macros.h>
 
