@@ -5,6 +5,20 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+if ($ENV{ROS_DISTRO} STREQUAL "jazzy")
+  set(TASKSPACE_CONTROLLERS_JAZZY TRUE)
+elseif ($ENV{ROS_DISTRO} STREQUAL "iron")
+  set(TASKSPACE_CONTROLLERS_IRON TRUE)
+elseif($ENV{ROS_DISTRO} STREQUAL "humble")
+  set(TASKSPACE_CONTROLLERS_HUMBLE TRUE)
+else()
+  message(WARNING "ROS2 version must be {jazzy|iron|humble}")
+endif()
+configure_file(
+  include/coordinated_motion_controllers/ros2_version_config.h.in
+  ros2_version_config.h
+)
+
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(urdf REQUIRED)
@@ -31,6 +45,11 @@ generate_parameter_library(
 generate_parameter_library(
   coordinated_controller_base_parameters
   src/coordinated_controller_base_parameters.yaml
+)
+
+generate_parameter_library(
+  pose_controller_parameters
+  src/pose_controller_parameters.yaml
 )
 
 include_directories(
@@ -72,7 +91,7 @@ pluginlib_export_plugin_description_file(
 ## coordinated_motion_controllers
 add_library(${PROJECT_NAME} SHARED
   src/coordinated_controller_base.cpp
-  # src/pose_controller.cpp
+  src/pose_controller.cpp
   # src/axially_symmetric_controller.cpp
   # src/positioner_controller.cpp
   # src/positioner_objectives/positioner_objective_plugin.cpp
