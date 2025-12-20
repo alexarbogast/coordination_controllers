@@ -244,6 +244,18 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_deactivate(
   // release loaned interfaces if needed (framework often handles this)
   joint_command_handles_.clear();
   joint_state_handles_.clear();
+  this->release_interfaces();
+  return controller_interface::CallbackReturn::SUCCESS;
+}
+
+controller_interface::CallbackReturn CoordinatedControllerBase::on_shutdown(
+    const rclcpp_lifecycle::State& previous_state)
+{
+  stop_motion();
+
+  joint_command_handles_.clear();
+  joint_state_handles_.clear();
+  this->release_interfaces();
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
