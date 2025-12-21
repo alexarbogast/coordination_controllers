@@ -18,6 +18,11 @@ coordinated_controller_base:
     },
     read_only: true
   }
+  positioner_link: {
+    type: string,
+    description: "Name of the positioner frame",
+    read_only: true,
+  }
   base_link: {
     type: string,
     description: "Name of the base reference frame",
@@ -26,5 +31,10 @@ coordinated_controller_base:
   eef_link: {
     type: string,
     description: "Name of the 'tool' reference frame",
+    read_only: true,
+  }
+  positioner_topic: {
+    type: string,
+    description: "Name of the positioner feedback topic",
     read_only: true,
   }

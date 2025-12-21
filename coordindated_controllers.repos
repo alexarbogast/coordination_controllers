@@ -1,0 +1,5 @@
+repositories:
+  taskspace_control:
+    type: git
+    url: https://github.com/alexarbogast/taskspace_control
+    version: ros2
