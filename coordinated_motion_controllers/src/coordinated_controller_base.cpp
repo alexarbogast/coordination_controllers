@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <coordinated_motion_controllers/coordinated_controller_base.hpp>
-#include <axially_symmetric_controllers/utility.hpp>
 #include <controller_interface/helpers.hpp>
+#include <axially_symmetric_controllers/utility.hpp>
 
 #include <urdf/model.h>
+#include <kdl/jntarray.hpp>
 #include <kdl/tree.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 
@@ -24,6 +26,8 @@ namespace coordinated_motion_controllers
 {
 
 static const std::string POS_SETPOINT_NS = "pos_setpoint";
+// static const std::string JOINT_STATE_TOPIC = "/joint_states";
+using namespace std::chrono_literals;
 
 controller_interface::InterfaceConfiguration
 CoordinatedControllerBase::command_interface_configuration() const
@@ -96,6 +100,7 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
     return controller_interface::CallbackReturn::ERROR;
   }
 
+  positioner_link_ = params_.positioner_link;
   base_link_ = params_.base_link;
   eef_link_ = params_.eef_link;
 
@@ -123,9 +128,9 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
     itf.reserve(params_.joints.size());
   }
 
-  has_position_command_interface_ = contains_interface_type(
+  has_position_command_interface_ = ctrl::contains_interface_type(
       params_.command_interfaces, hardware_interface::HW_IF_POSITION);
-  has_velocity_command_interface_ = contains_interface_type(
+  has_velocity_command_interface_ = ctrl::contains_interface_type(
       params_.command_interfaces, hardware_interface::HW_IF_VELOCITY);
 
   joint_state_handles_.resize(allowed_interface_types_.size());
@@ -158,6 +163,9 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
     return controller_interface::CallbackReturn::ERROR;
   }
 
+  coordinated_fk_solver_ =
+      std::make_unique<KDL::ChainFkSolverPos_recursive>(coordinated_chain_);
+
   upper_pos_limits_.resize(n_robot_joints_);
   lower_pos_limits_.resize(n_robot_joints_);
   for (size_t i = 0; i < n_robot_joints_; ++i)
@@ -187,19 +195,27 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
     }
   }
 
-  coordinated_fk_solver_ =
-      std::make_unique<KDL::ChainFkSolverPos_recursive>(coordinated_chain_);
+  // Setup positioner joint state
+  n_pos_joints_ = params_.positioner_joints.size();
+  KDL::JntArrayVel pos_state(n_pos_joints_);
+  pos_state.q.data.setZero();
+  pos_state.qdot.data.setZero();
+  positioner_state_.writeFromNonRT(pos_state);
+
+  positioner_setpoint_pub_ = std::make_unique<realtime_tools::RealtimePublisher<
+      coordinated_control_msgs::msg::PositionerSetpoint>>(
+      get_node()
+          ->create_publisher<coordinated_control_msgs::msg::PositionerSetpoint>(
+              POS_SETPOINT_NS, rclcpp::SystemDefaultsQoS()));
+
+  positioner_setpoint_pub_->msg_.coordinated = false;
+  positioner_setpoint_pub_->msg_.velocity.resize(n_pos_joints_);
 
   // Create service for query_pose
   query_pose_service_ = get_node()->create_service<QueryPose>(
       get_node()->get_name() + std::string("/query_pose"),
       std::bind(&CoordinatedControllerBase::queryPoseServiceCb, this,
                 std::placeholders::_1, std::placeholders::_2));
-
-  RCLCPP_INFO(logger,
-              "CoordinatedControllerBase configured for %u robot joints "
-              "and %u positioner joints.",
-              n_robot_joints_, n_pos_joints_);
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -332,26 +348,6 @@ void CoordinatedControllerBase::stop_motion()
       command_interfaces_[vel_ind * n_robot_joints_ + joint_ind].set_value(0.0);
     }
   }
-}
-
-KDL::JntArrayVel CoordinatedControllerBase::create_kdl_state(
-    const ctrl::VectorND& q, const ctrl::VectorND& qdot)
-{
-  const size_t n = q.size();
-  KDL::JntArrayVel out(n);
-
-  Eigen::Map<Eigen::VectorXd>(out.q.data.data(), n) = q;
-  Eigen::Map<Eigen::VectorXd>(out.qdot.data.data(), n) = qdot;
-
-  return out;
-}
-
-bool CoordinatedControllerBase::contains_interface_type(
-    const std::vector<std::string>& interface_type_list,
-    const std::string& interface_type)
-{
-  return std::find(interface_type_list.begin(), interface_type_list.end(),
-                   interface_type) != interface_type_list.end();
 }
 
 bool CoordinatedControllerBase::queryPoseServiceCb(

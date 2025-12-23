@@ -6,11 +6,11 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if ($ENV{ROS_DISTRO} STREQUAL "jazzy")
-  set(TASKSPACE_CONTROLLERS_JAZZY TRUE)
+  set(COORDINATED_CONTROLLERS_JAZZY TRUE)
 elseif ($ENV{ROS_DISTRO} STREQUAL "iron")
-  set(TASKSPACE_CONTROLLERS_IRON TRUE)
+  set(COORDINATED_CONTROLLERS_IRON TRUE)
 elseif($ENV{ROS_DISTRO} STREQUAL "humble")
-  set(TASKSPACE_CONTROLLERS_HUMBLE TRUE)
+  set(COORDINATED_CONTROLLERS_HUMBLE TRUE)
 else()
   message(WARNING "ROS2 version must be {jazzy|iron|humble}")
 endif()
@@ -50,6 +50,11 @@ generate_parameter_library(
 generate_parameter_library(
   pose_controller_parameters
   src/pose_controller_parameters.yaml
+)
+
+generate_parameter_library(
+  positioner_controller_parameters
+  src/positioner_controller_parameters.yaml
 )
 
 include_directories(
@@ -93,11 +98,15 @@ add_library(${PROJECT_NAME} SHARED
   src/coordinated_controller_base.cpp
   src/pose_controller.cpp
   # src/axially_symmetric_controller.cpp
-  # src/positioner_controller.cpp
-  # src/positioner_objectives/positioner_objective_plugin.cpp
+  src/positioner_controller.cpp
+  src/positioner_objectives/positioner_objective_plugin.cpp
+  # src/utility.cpp
 )
 target_link_libraries(${PROJECT_NAME}
   coordinated_controller_base_parameters
+  pose_controller_parameters
+  positioner_controller_parameters
+  positioner_objectives
 )
 ament_target_dependencies(${PROJECT_NAME}
   rclcpp
@@ -127,6 +136,9 @@ install(
     ${PROJECT_NAME}
     positioner_objectives
     match_configuration_parameters
+    coordinated_controller_base_parameters
+    pose_controller_parameters
+    positioner_controller_parameters
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

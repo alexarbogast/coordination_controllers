@@ -1,6 +1,13 @@
 coordinated_controller_base:
-  # coordinated_controller params
   joints: {
+    type: string_array,
+    description: "Name of the joints to control",
+    validation: {
+      not_empty<>: []
+    },
+    read_only: true
+  }
+  positioner_joints: {
     type: string_array,
     description: "Name of the joints to control",
     validation: {

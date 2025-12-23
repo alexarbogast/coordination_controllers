@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <controller_interface/controller_interface_base.hpp>
 #include <coordinated_motion_controllers/pose_controller.hpp>
 #include <axially_symmetric_controllers/utility.hpp>
 
@@ -71,6 +72,9 @@ PoseController::on_configure(const rclcpp_lifecycle::State& previous_state)
                     std::placeholders::_1));
 
   // --- Redundancy Resolution objective ---
+  rr_objective_loader_ = std::make_unique<
+      pluginlib::ClassLoader<task_priority_controllers::RRObjective>>(
+      "task_priority_controllers", "task_priority_controllers::RRObjective");
   try
   {
     rr_objective_ = rr_objective_loader_->createUniqueInstance(
@@ -88,7 +92,19 @@ PoseController::on_configure(const rclcpp_lifecycle::State& previous_state)
     return CallbackReturn::FAILURE;
   }
 
+  if (!rr_objective_->init(node, robot_chain_, upper_pos_limits_,
+                           lower_pos_limits_))
+  {
+    RCLCPP_ERROR(node->get_logger(),
+                 "Failed to initialize redundancy resolution objective.");
+    return CallbackReturn::FAILURE;
+  }
+
   // --- Positioner objective ---
+  positioner_objective_loader_ = std::make_unique<pluginlib::ClassLoader<
+      coordinated_motion_controllers::PositionerObjective>>(
+      "coordinated_motion_controllers",
+      "coordinated_motion_controllers::PositionerObjective");
   try
   {
     positioner_objective_ = positioner_objective_loader_->createUniqueInstance(
@@ -101,13 +117,20 @@ PoseController::on_configure(const rclcpp_lifecycle::State& previous_state)
   catch (const pluginlib::PluginlibException& e)
   {
     RCLCPP_ERROR(node->get_logger(),
-                 "Failed to load redundancy resolution plugin. Execption: %s",
+                 "Failed to load positioner objective plugin. Execption: %s",
                  e.what());
     return CallbackReturn::FAILURE;
   }
 
+  if (!positioner_objective_->init(node, robot_chain_))
+  {
+    RCLCPP_ERROR(node->get_logger(),
+                 "Failed to initialize positioner objective.");
+    return CallbackReturn::FAILURE;
+  }
+
   RCLCPP_INFO(node->get_logger(),
-              "CoordinatedControllerBase configured for %u robot joints "
+              "Coordinated PoseController configured for %u robot joints "
               "and %u positioner joints.",
               n_robot_joints_, n_pos_joints_);
 
@@ -193,7 +216,7 @@ controller_interface::return_type PoseController::update(
   ctrl::VectorND new_position =
       joint_state_.q.data + (joint_cmd * period.seconds());
 
-  auto cmd = create_kdl_state(new_position, joint_cmd);
+  auto cmd = ctrl::transformEigenToKDL(new_position, joint_cmd);
   write_robot_command(cmd);
 
   // --- Suggested positioner command ---

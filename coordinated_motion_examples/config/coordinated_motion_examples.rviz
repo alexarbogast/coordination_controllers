@@ -66,46 +66,99 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        base_link:
+        positioner:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        positioner_base:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        link1:
+        rob1_base_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        link2:
+        rob1_link1:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        link3:
+        rob1_link2:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        link4:
+        rob1_link3:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        link5:
+        rob1_link4:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        link6:
+        rob1_link5:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        tool:
+        rob1_link6:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        tool0:
+          Value: true
+        rob1_tool:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rob1_tool0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rob2_base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rob2_link1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rob2_link2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rob2_link3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rob2_link4:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rob2_link5:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rob2_link6:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rob2_tool:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rob2_tool0:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -168,25 +221,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 1.8979061841964722
+      Distance: 1.4485743045806885
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.03649064153432846
-        Y: -0.11919811367988586
-        Z: 0.19559626281261444
+        X: -0.013719289563596249
+        Y: -0.10892342776060104
+        Z: 0.14476244151592255
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4353983402252197
+      Pitch: 0.25979647040367126
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.8953979015350342
+      Yaw: 1.2853975296020508
     Saved: ~
 Window Geometry:
   Displays:

@@ -62,7 +62,7 @@ def generate_launch_description():
         [
             pkg_share,
             "urdf",
-            PythonExpression(['"two_"', '"', robot_type, '" + ".xacro"']),
+            PythonExpression(['"two_" + "', robot_type, '" + ".xacro"']),
         ]
     )
 
@@ -92,27 +92,36 @@ def generate_launch_description():
         output="both",
     )
 
+    joint_state_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "joint_state_broadcaster",
+            "--controller-manager",
+            "controller_manager",
+        ],
+    )
+
     robot_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
         arguments=[
             [TextSubstitution(text="rob1_"), controller],
             [TextSubstitution(text="rob2_"), controller],
-            [TextSubstitution(text="rob3_"), controller],
             "--controller-manager",
             "controller_manager",
         ],
     )
 
-    # positioner_controller_spawner = Node(
-    #     package="controller_manager",
-    #     executable="spawner",
-    #     arguments=[
-    #         "positioner_controller",
-    #         "--controller-manager",
-    #         "controller_manager",
-    #     ],
-    # )
+    positioner_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "positioner_controller",
+            "--controller-manager",
+            "controller_manager",
+        ],
+    )
 
     rviz_node = Node(
         package="rviz2",
@@ -125,8 +134,9 @@ def generate_launch_description():
     nodes_to_start = [
         robot_state_publisher_node,
         control_node,
+        joint_state_broadcaster_spawner,
         robot_controller_spawner,
-        # positioner_controller_spawner
+        positioner_controller_spawner,
         rviz_node,
     ]
 
