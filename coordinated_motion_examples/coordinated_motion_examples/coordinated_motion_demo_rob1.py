@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import quaternion
 import rclpy
 import threading
 
 from taskspace_control_examples.trajectory import *
 from coordinated_motion_examples import CoordinatedControlDemo
 
+robot_params = {
+    "robot6R": {"orient": np.quaternion(1.0, 0.0, 0.0, 0.0)},
+    "robot7R": {"orient": np.quaternion(0.0, 1.0, 0.0, 0.0)},
+}
+
 
 class CoordinatedControlDemoRob1(CoordinatedControlDemo):
     """
     Routines are selected for all robots in `coordinated_control_demo.py`
     """
+
+    def __init__(self, node_name: str, setpoint_hz=250):
+        super().__init__(node_name, setpoint_hz)
+        self.static_orient = robot_params[self.robot_type]["orient"]
 
     def small_circle(self):
         tf = 7

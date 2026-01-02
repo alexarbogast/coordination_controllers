@@ -6,15 +6,11 @@ import abc
 
 from taskspace_control_examples import ControlDemo
 
-LINEAR_VELOCITY = 0.300
-
 robot_params = {
     "robot6R": {
-        "orient": np.quaternion(1.0, 0.0, 0.0, 0.0),
         "home": [0.0, -1.125, 2.275, -1.15, 1.571, 0.0],
     },
     "robot7R": {
-        "orient": np.quaternion(0.0, 1.0, 0.0, 0.0),
         "home": [0.0, 0.0, 0.0, -np.pi / 2, 0.0, np.pi / 2, 0.0],
     },
 }
@@ -31,10 +27,9 @@ class CoordinatedControlDemo(ControlDemo):
             raise RuntimeError("Missing required parameter: arm_id")
 
         self.declare_parameter("robot_type", "robot6R")
-        robot_type = self.get_parameter("robot_type").value
+        self.robot_type = self.get_parameter("robot_type").value
 
-        self.static_orient = robot_params[robot_type]["orient"]
-        self.home = robot_params[robot_type]["home"]
+        self.home = robot_params[self.robot_type]["home"]
 
     def run(self):
         self.small_circle()

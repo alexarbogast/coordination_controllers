@@ -1,6 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, TextSubstitution
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
@@ -34,9 +34,8 @@ def generate_launch_description():
         robot_demo_nodes.append(
             Node(
                 package="coordinated_motion_examples",
-                executable="coordinated_motion_demo_rob1",
+                executable="coordinated_motion_demo_" + arm_id,
                 name="coordinated_motion_client",
-                namespace=arm_id,
                 output="screen",
                 parameters=[
                     {

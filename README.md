@@ -50,26 +50,21 @@ description](./coordinated_motion_controllers/coordinated_controller_plugins.xml
 Launch the demo multi-robot system with the desired robot.
 
 ```bash
-ros2 launch coordinated_motion_examples two_robot_bringup.launch.py
-```
-```
-# robot_type (default "robot6R"): One of 'robot6R', 'robot7R
+ros2 launch coordinated_motion_examples two_robot_bringup.launch.py robot_type:=robot6R controller:=coordinated_as_controller
 ```
 
-In another terminal, launch the control demo with the desired controller.
+```
+# 'robot_type' (default "robot6R"): One of 'robot6R', 'robot7R
+# 'controller' (default "coordinated_as_controller"): One of 'coordinated_pose_controller', 'coordinated_as_controller'
+```
+
+In another terminal, launch the control demo with a matching robot_type and controller.
 
 ```bash
-ros2 launch coordinated_motion_examples coordinated_motion_demo.launch.py robot_type:=robot6R controller:=pose_controller
-```
-```
-# 'robot_type':
-#     Select which robot configuration to use. Valid choices are: ['robot6R', 'robot7R']
-#     (default: 'robot6R')
-#
-# 'controller':
-#     Which controller should be started?. Valid choices are: ['coordinated_pose_controller']
-#     (default: 'coordinated_pose_controller')
+ros2 launch coordinated_motion_examples coordinated_motion_demo.launch.py robot_type:=robot6R controller:=coordinated_as_controller
 ```
 
 Modify the positioner and redundancy resolution objectives in the respective
 `coordinated_motion_examples/config/<robot_type>_controllers.yaml`.
+- [robot6R config](./coordinated_motion_examples/config/robot6R_controllers.yaml)
+- [robot7R config](./coordinated_motion_examples/config/robot7R_controllers.yaml)
