@@ -1,0 +1,13 @@
+position_attractor:
+  attractor: {
+    type: double_array,
+    description: "The attracting position (expressed in the base frame)",
+    validation: {
+      fixed_size<>: 3
+    }
+  }
+  k_attract: {
+    type: double,
+    default_value: 1.0,
+    description: "The gain to scale the configuration error"
+  }

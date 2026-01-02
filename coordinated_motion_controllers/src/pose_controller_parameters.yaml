@@ -25,7 +25,7 @@ pose_controller:
       one_of<>: [[
         "minimize_velocity",
         "match_configuration",
-        "taskspace_anchor",
+        "position_attractor",
       ]]
     }
   }

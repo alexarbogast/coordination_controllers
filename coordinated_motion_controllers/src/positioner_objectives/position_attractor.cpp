@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <coordinated_motion_controllers/positioner_objectives/match_configuration.hpp>
-
-const static std::string CONFIG_PARAM = "match_config";
+#include <coordinated_motion_controllers/positioner_objectives/position_attractor.hpp>
+#include <kdl/jacobian.hpp>
 
 namespace coordinated_motion_controllers
 {
 
-bool MatchConfiguration::init(
+bool PositionAttractor::init(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
     const KDL::Chain& chain)
 {
@@ -30,8 +29,7 @@ bool MatchConfiguration::init(
 
   try
   {
-    param_listener_ =
-        std::make_shared<match_configuration::ParamListener>(node);
+    param_listener_ = std::make_shared<position_attractor::ParamListener>(node);
   }
   catch (const std::exception& e)
   {
@@ -43,32 +41,34 @@ bool MatchConfiguration::init(
   }
 
   params_ = param_listener_->get_params();
-  config_.data = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(
-      params_.match_config.data(), params_.match_config.size());
+  std::copy_n(params_.attractor.data(), 3, tracked_position_.data);
 
-  if (params_.match_config.size() != n_joints_)
-  {
-    const auto msg = std::string("Number of joints in ") +
-                     node->get_namespace() + "/" + CONFIG_PARAM +
-                     " does not match robot chain";
-    RCLCPP_ERROR(node->get_logger(), "%s", msg.c_str());
-    return false;
-  }
+  robot_fk_solver_ = std::make_unique<KDL::ChainFkSolverPos_recursive>(chain);
+  jacobian_solver_ = std::make_unique<KDL::ChainJntToJacSolver>(chain);
   return true;
 }
 
 ctrl::VectorND
-MatchConfiguration::getJointControlCmd(const KDL::JntArrayVel& joint_state)
+PositionAttractor::getJointControlCmd(const KDL::JntArrayVel& joint_state)
 {
   if (param_listener_->is_old(params_))
   {
     params_ = param_listener_->get_params();
   }
-  return params_.k_config * (config_.data - joint_state.q.data);
+
+  KDL::Frame pose;
+  robot_fk_solver_->JntToCart(joint_state.q, pose);
+
+  KDL::Jacobian jac(n_joints_);
+  jacobian_solver_->JntToJac(joint_state.q, jac);
+
+  ctrl::Vector3D trans_error((tracked_position_ - pose.p).data);
+  return params_.k_attract *
+         ctrl::rightPinv(jac.data.block(0, 0, 3, n_joints_)) * trans_error;
 }
 
 }  // namespace coordinated_motion_controllers
 
 #include <pluginlib/class_list_macros.hpp>
-PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::MatchConfiguration,
+PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::PositionAttractor,
                        coordinated_motion_controllers::PositionerObjective)

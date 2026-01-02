@@ -41,6 +41,11 @@ generate_parameter_library(
   src/positioner_objectives/match_configuration_parameters.yaml
 )
 
+generate_parameter_library(
+  position_attractor_parameters
+  src/positioner_objectives/position_attractor_parameters.yaml
+)
+
 ## coordinated controller parameters
 generate_parameter_library(
   coordinated_controller_base_parameters
@@ -67,10 +72,11 @@ add_library(positioner_objectives SHARED
   src/positioner_objectives/positioner_objective_plugin.cpp
   src/positioner_objectives/minimize_velocity.cpp
   src/positioner_objectives/match_configuration.cpp
-  # src/positioner_objectives/taskspace_anchor.cpp
+  src/positioner_objectives/position_attractor.cpp
 )
 target_link_libraries(positioner_objectives
   match_configuration_parameters
+  position_attractor_parameters
 )
 ament_target_dependencies(positioner_objectives
   rclcpp
