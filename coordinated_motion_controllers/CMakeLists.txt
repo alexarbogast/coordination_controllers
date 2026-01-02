@@ -97,7 +97,7 @@ pluginlib_export_plugin_description_file(
 add_library(${PROJECT_NAME} SHARED
   src/coordinated_controller_base.cpp
   src/pose_controller.cpp
-  # src/axially_symmetric_controller.cpp
+  src/axially_symmetric_controller.cpp
   src/positioner_controller.cpp
   src/positioner_objectives/positioner_objective_plugin.cpp
   # src/utility.cpp

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <algorithm>
 #include <coordinated_motion_controllers/coordinated_controller_base.hpp>
 #include <controller_interface/helpers.hpp>
 #include <axially_symmetric_controllers/utility.hpp>
@@ -122,18 +121,10 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
     return controller_interface::CallbackReturn::FAILURE;
   }
 
-  joint_command_handles_.resize(allowed_interface_types_.size());
-  for (auto& itf : joint_command_handles_)
-  {
-    itf.reserve(params_.joints.size());
-  }
-
   has_position_command_interface_ = ctrl::contains_interface_type(
       params_.command_interfaces, hardware_interface::HW_IF_POSITION);
   has_velocity_command_interface_ = ctrl::contains_interface_type(
       params_.command_interfaces, hardware_interface::HW_IF_VELOCITY);
-
-  joint_state_handles_.resize(allowed_interface_types_.size());
 
   // parse URDF -> KDL
   urdf::Model urdf_model;
@@ -231,23 +222,6 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_activate(
   // get parameters from the listener in case they were updated
   params_ = param_listener_->get_params();
 
-  for (const auto& interface : params_.command_interfaces)
-  {
-    auto it = std::find(allowed_interface_types_.begin(),
-                        allowed_interface_types_.end(), interface);
-    auto index = static_cast<size_t>(
-        std::distance(allowed_interface_types_.begin(), it));
-    if (!controller_interface::get_ordered_interfaces(
-            command_interfaces_, params_.joints, interface,
-            joint_command_handles_[index]))
-    {
-      RCLCPP_ERROR(logger, "Expected %u '%s' command interfaces, got %zu.",
-                   n_robot_joints_, interface.c_str(),
-                   joint_command_handles_[index].size());
-      return CallbackReturn::ERROR;
-    }
-  }
-
   RCLCPP_INFO(logger, "Activated CoordinatedControllerBase");
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -256,11 +230,6 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_deactivate(
     const rclcpp_lifecycle::State& /*previous_state*/)
 {
   stop_motion();
-
-  // release loaned interfaces if needed (framework often handles this)
-  joint_command_handles_.clear();
-  joint_state_handles_.clear();
-  this->release_interfaces();
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -268,10 +237,6 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_shutdown(
     const rclcpp_lifecycle::State& previous_state)
 {
   stop_motion();
-
-  joint_command_handles_.clear();
-  joint_state_handles_.clear();
-  this->release_interfaces();
   return controller_interface::CallbackReturn::SUCCESS;
 }
 

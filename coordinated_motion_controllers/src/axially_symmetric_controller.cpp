@@ -17,50 +17,45 @@
 
 namespace coordinated_motion_controllers
 {
-
-void AxiallySymmetricController::update(const ros::Time&,
-                                        const ros::Duration& period)
+controller_interface::return_type AxiallySymmetricController::update(
+    const rclcpp::Time& time, const rclcpp::Duration& period)
 {
-  synchronizeJointStates();  // update state
+  if (pose_param_listener_->is_old(pose_params_))
+  {
+    pose_params_ = pose_param_listener_->get_params();
+  }
 
-  const DynamicParams* params = dynamic_params_.readFromRT();
-  const Setpoint* setpoint = setpoint_.readFromRT();
+  read_state_from_hardware(joint_state_);
+  const Setpoint* setpoint = setpoint_buffer_.readFromRT();
 
   KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
   combined_positions.data << positioner_state_.readFromRT()->q.data.reverse(),
-      robot_state_.q.data;
+      joint_state_.q.data;
 
   KDL::Jacobian coord_jac(n_robot_joints_ + n_pos_joints_);
   coordinated_jacobian_solver_->JntToJac(combined_positions, coord_jac);
 
-  KDL::Frame pose_pf;
-  coordinated_fk_solver_->JntToCart(combined_positions, pose_pf);
+  KDL::Frame pose_kdl;
+  coordinated_fk_solver_->JntToCart(combined_positions, pose_kdl);
 
-  /* error */
-  ctrl::Vector3D aim_current(pose_pf.M.UnitZ().data);
-  ctrl::Vector3D aim_desired(setpoint->pose.M.UnitZ().data);
+  ctrl::Pose pose;
+  ctrl::transformKDLToEigen(pose_kdl, pose);
 
-  ctrl::Vector3D rot_axis =
-      axially_symmetric_controllers::axisBetween(aim_current, aim_desired);
-  double rot_angle =
-      axially_symmetric_controllers::angleBetween(aim_current, aim_desired);
+  ctrl::Pose sp_pose;
+  ctrl::transformKDLToEigen(setpoint->pose, sp_pose);
 
-  ctrl::Vector2D orient_error(rot_axis.x(), rot_axis.y());
-  orient_error *= rot_angle;
-
-  ctrl::Vector3D pos_error((setpoint->pose.p - pose_pf.p).data);
+  ctrl::AngleAxis aa(sp_pose.rotation() * pose.rotation().inverse());
+  ctrl::Vector3D orient_error = aa.axis() * aa.angle();
+  ctrl::Vector3D trans_error(sp_pose.translation() - pose.translation());
 
   ctrl::Vector5D cart_cmd;
-  cart_cmd << params->k_position * pos_error + setpoint->twist.head<3>(),
-      params->k_orient * orient_error;
+  cart_cmd << pose_params_.k_position * trans_error + setpoint->twist.head<3>(),
+      pose_params_.k_orient * orient_error;
 
-  /* redundancy resolution */
-  ctrl::VectorND h = rr_objective_->getJointControlCmd(robot_state_);
-  // TODO: redundancy resolution objectives other than 0, cause instability
-  // issues
-  // ctrl::VectorND h = ctrl::VectorND::Zero(n_robot_joints_);
+  // --- Redundancy resolution ---
+  ctrl::VectorND h = rr_objective_->getJointControlCmd(joint_state_);
 
-  /* control */
+  // --- Control law ---
   ctrl::MatrixND I = ctrl::MatrixND::Identity(n_robot_joints_, n_robot_joints_);
   ctrl::MatrixND Jr =
       coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
@@ -74,23 +69,27 @@ void AxiallySymmetricController::update(const ros::Time&,
       Jr_pinv * (cart_cmd - Jp * q_dot_pos) + (I - Jr_pinv * Jr) * h;
 
   ctrl::VectorND new_position =
-      robot_state_.q.data + (joint_cmd * period.toSec());
-  writeRobotCommand(new_position);
+      joint_state_.q.data + (joint_cmd * period.seconds());
 
-  /* desired positioner command */
+  auto cmd = ctrl::transformEigenToKDL(new_position, joint_cmd);
+  write_robot_command(cmd);
+
+  // --- Suggested positioner command ---
   ctrl::VectorND robot_qdot_attempt =
-      positioner_objective_->getJointControlCmd(robot_state_);
+      positioner_objective_->getJointControlCmd(joint_state_);
 
   ctrl::VectorND pos_setpoint =
       ctrl::leftPinv(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
 
   pos_setpoint = pos_setpoint.reverse();
-  writePositionerCommand(pos_setpoint);
+  write_positioner_command(pos_setpoint);
+
+  return controller_interface::return_type::OK;
 }
 
 }  // namespace coordinated_motion_controllers
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(
     coordinated_motion_controllers::AxiallySymmetricController,
-    controller_interface::ControllerBase)
+    controller_interface::ControllerInterface)

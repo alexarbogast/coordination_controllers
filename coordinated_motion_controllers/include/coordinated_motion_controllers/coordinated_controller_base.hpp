@@ -80,7 +80,6 @@ public:
   on_shutdown(const rclcpp_lifecycle::State& previous_state) override;
 
 protected:
-  // Hardware interface methods
   void read_state_from_hardware(KDL::JntArrayVel& state);
   void stop_motion();
   void write_robot_command(const KDL::JntArrayVel& cmd);
@@ -93,18 +92,8 @@ protected:
   virtual bool queryPoseServiceCb(const std::shared_ptr<QueryPose::Request> req,
                                   std::shared_ptr<QueryPose::Response> resp);
 
-  // Hardware interface configuration
-  template <typename T>
-  using InterfaceReferences =
-      std::vector<std::vector<std::reference_wrapper<T>>>;
-
   std::shared_ptr<coordinated_controller_base::ParamListener> param_listener_;
   coordinated_controller_base::Params params_;
-
-  InterfaceReferences<hardware_interface::LoanedCommandInterface>
-      joint_command_handles_;
-  InterfaceReferences<hardware_interface::LoanedStateInterface>
-      joint_state_handles_;
 
   const std::vector<std::string> allowed_interface_types_ = {
     hardware_interface::HW_IF_POSITION,

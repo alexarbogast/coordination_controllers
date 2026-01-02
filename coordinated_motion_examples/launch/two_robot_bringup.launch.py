@@ -38,9 +38,7 @@ def generate_launch_description():
             "controller",
             choices=[
                 "coordinated_pose_controller",
-                # "task_priority_controller",
-                # "as_nullspace_controller",
-                # "as_twist_decomposition_controller",
+                "coordinated_as_controller",
             ],
             default_value="coordinated_pose_controller",
             description="Which controller should be started?",
