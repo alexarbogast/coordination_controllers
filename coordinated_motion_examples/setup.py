@@ -29,9 +29,9 @@ setup(
     entry_points={
         "console_scripts": [
             "coordinated_motion_demo_rob1 = \
-                    coordianted_motion_examples.coordinated_motion_demo_rob1:main",
+                    coordinated_motion_examples.coordinated_motion_demo_rob1:main",
             "coordinated_motion_demo_rob2 = \
-                    coordianted_motion_examples.coordinated_motion_demo_rob2:main",
+                    coordinated_motion_examples.coordinated_motion_demo_rob2:main",
         ],
     },
 )
