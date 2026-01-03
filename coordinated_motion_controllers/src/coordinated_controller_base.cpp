@@ -12,16 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <controller_interface/controller_interface_base.hpp>
 #include <coordinated_motion_controllers/coordinated_controller_base.hpp>
 #include <controller_interface/helpers.hpp>
 #include <axially_symmetric_controllers/utility.hpp>
 
 #include <urdf/model.h>
 #include <kdl/jntarray.hpp>
+#include <kdl/jntarrayvel.hpp>
 #include <kdl/tree.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 #include <memory>
-#include "taskspace_controllers/utility.hpp"
+
+// positioner state interfaces
+#include <coordinated_motion_controllers/positioner_state_interface/topic_state_interface.hpp>
+#include <coordinated_motion_controllers/positioner_state_interface/loaned_state_interface.hpp>
 
 namespace coordinated_motion_controllers
 {
@@ -52,10 +57,22 @@ CoordinatedControllerBase::state_interface_configuration() const
   cfg.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
   // use only position feedback for now
-  const std::string interface = "position";
   for (const auto& joint : robot_joint_names_)
   {
-    cfg.names.push_back(joint + std::string("/").append(interface));
+    cfg.names.push_back(
+        joint + std::string("/").append(hardware_interface::HW_IF_POSITION));
+  }
+
+  // handle the positioner_state_interface == loaned case
+  if (params_.state_interface == "loaned")
+  {
+    for (const auto& joint : positioner_joint_names_)
+    {
+      cfg.names.push_back(
+          joint + std::string("/").append(hardware_interface::HW_IF_POSITION));
+      cfg.names.push_back(
+          joint + std::string("/").append(hardware_interface::HW_IF_VELOCITY));
+    }
   }
   return cfg;
 }
@@ -199,16 +216,26 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
     }
   }
 
-  // Setup positioner joint state subscription and setpoint publisher
-  KDL::JntArrayVel pos_state(n_pos_joints_);
-  pos_state.q.data.setZero();
-  pos_state.qdot.data.setZero();
-  positioner_state_.writeFromNonRT(pos_state);
+  // Create positioner state interface
+  if (params_.state_interface == "topic")
+  {
+    pos_state_interface_ = std::make_unique<TopicStateInterface>();
+  }
+  else if (params_.state_interface == "loaned")
+  {
+    pos_state_interface_ = std::make_unique<LoanedStateInterface>();
+  }
+  else
+  {
+    RCLCPP_FATAL(logger, "Unknown positioner state interface.");
+    return controller_interface::CallbackReturn::ERROR;
+  }
 
-  positioner_sub_ = get_node()->create_subscription<JointStateMsg>(
-      params_.positioner_topic, rclcpp::SystemDefaultsQoS(),
-      std::bind(&CoordinatedControllerBase::posJointStateCallback, this,
-                std::placeholders::_1));
+  if (!pos_state_interface_->init(get_node(), positioner_joint_names_, params_))
+  {
+    RCLCPP_FATAL(logger, "Failed to initialize positioner state iterface");
+    return controller_interface::CallbackReturn::ERROR;
+  }
 
   try
   {
@@ -222,7 +249,9 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
   }
   catch (const std::exception& e)
   {
-    RCLCPP_ERROR(logger, "Failed to initialize positioner setpoint publisher");
+    RCLCPP_ERROR(logger,
+                 "Failed to initialize positioner setpoint "
+                 "publisher");
     return controller_interface::CallbackReturn::SUCCESS;
   }
 
@@ -248,6 +277,20 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_activate(
 
   // get parameters from the listener in case they were updated
   params_ = param_listener_->get_params();
+
+  if (params_.state_interface == "loaned")
+  {
+    auto loaned_iface =
+        dynamic_cast<LoanedStateInterface*>(pos_state_interface_.get());
+    if (!loaned_iface->bind(state_interfaces_))
+    {
+      RCLCPP_ERROR(get_node()->get_logger(),
+                   "Failed to bind positioner state interfaces. "
+                   "Is your positioner in the same system interface as you "
+                   "robot?");
+      return CallbackReturn::ERROR;
+    }
+  }
 
   positioner_setpoint_msg_.coordinated = true;
 
@@ -294,6 +337,18 @@ void CoordinatedControllerBase::read_state_from_hardware(
   {
     state.q = last_commanded_.q;
   }
+}
+
+void CoordinatedControllerBase::get_combined_state(KDL::JntArrayVel& state)
+{
+  read_state_from_hardware(joint_state_);
+
+  KDL::JntArrayVel pos_state(n_pos_joints_);
+  pos_state.resize(n_pos_joints_);
+  pos_state_interface_->read(pos_state);
+
+  state.q.data << pos_state.q.data.reverse(), joint_state_.q.data;
+  state.qdot.data << pos_state.qdot.data.reverse(), joint_state_.qdot.data;
 }
 
 void CoordinatedControllerBase::write_robot_command(const KDL::JntArrayVel& cmd)
@@ -350,12 +405,8 @@ bool CoordinatedControllerBase::queryPoseServiceCb(
     const std::shared_ptr<QueryPose::Request> /*req*/,
     std::shared_ptr<QueryPose::Response> resp)
 {
-  read_state_from_hardware(joint_state_);
-
-  KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-  combined_positions.data << positioner_state_.readFromNonRT()
-                                 ->q.data.reverse(),
-      joint_state_.q.data;
+  KDL::JntArrayVel combined_state(n_pos_joints_ + n_robot_joints_);
+  get_combined_state(combined_state);
 
   KDL::Frame pose;
   if (!coordinated_fk_solver_)
@@ -363,7 +414,7 @@ bool CoordinatedControllerBase::queryPoseServiceCb(
     RCLCPP_ERROR(get_node()->get_logger(), "FK solver not initialized.");
     return false;
   }
-  int fk_res = coordinated_fk_solver_->JntToCart(combined_positions, pose);
+  int fk_res = coordinated_fk_solver_->JntToCart(combined_state.q, pose);
   if (fk_res < 0)
   {
     RCLCPP_ERROR(get_node()->get_logger(), "FK solver failed.");
@@ -380,57 +431,4 @@ bool CoordinatedControllerBase::queryPoseServiceCb(
   return true;
 }
 
-void CoordinatedControllerBase::posJointStateCallback(
-    const JointStateMsg::SharedPtr msg)
-{
-  // Create index mapping for filtering
-  std::vector<int> indices(n_pos_joints_, -1);
-
-  // Find matching joint names and their indices
-  for (size_t i = 0; i < positioner_joint_names_.size(); ++i)
-  {
-    auto it = std::find(msg->name.begin(), msg->name.end(),
-                        positioner_joint_names_[i]);
-    if (it != msg->name.end())
-    {
-      indices[i] = std::distance(msg->name.begin(), it);
-    }
-  }
-
-  // Create filtered KDL::JntArrayVel
-  KDL::JntArrayVel pos_state(n_pos_joints_);
-
-  // Populate with filtered data
-  for (size_t i = 0; i < indices.size(); ++i)
-  {
-    if (indices[i] >= 0)
-    {
-      // Set position
-      if (static_cast<size_t>(indices[i]) < msg->position.size())
-      {
-        pos_state.q(i) = msg->position[indices[i]];
-      }
-
-      // Set velocity
-      if (static_cast<size_t>(indices[i]) < msg->velocity.size())
-      {
-        pos_state.qdot(i) = msg->velocity[indices[i]];
-      }
-      else
-      {
-        pos_state.qdot(i) = 0.0;
-      }
-    }
-    else
-    {
-      RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(),
-                           5000,  // 5 seconds
-                           "Joint '%s' not found in positioner state message",
-                           positioner_joint_names_[i].c_str());
-    }
-  }
-
-  // Write to realtime buffer
-  positioner_state_.writeFromNonRT(pos_state);
-}
 }  // namespace coordinated_motion_controllers

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<robot name="two_robot6R" xmlns:xacro="http://ros.org/wiki/xacro">
+<robot name="two_robot6R" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:property name="radius" value="0.5"/>
   <xacro:property name="spacing" value="0.52"/>
 
@@ -35,10 +35,15 @@
   </joint>
 
   <!-- ROS2 control -->
-  <xacro:include filename="$(find taskspace_control_examples)/urdf/robot6R.ros2_control.xacro"/>
-  <xacro:robot6R_ros2_control prefix="rob1_"/>
-  <xacro:robot6R_ros2_control prefix="rob2_"/>
-
+  <xacro:include filename="$(find coordinated_motion_examples)/urdf/robot6R.ros2_control.xacro"/>
   <xacro:include filename="$(find coordinated_motion_examples)/urdf/positioner1R.ros2_control.xacro"/>
-  <xacro:positioner_ros2_control prefix=""/>
+
+  <ros2_control name="two_robot_ros2_control" type="system">
+    <hardware>
+      <plugin>mock_components/GenericSystem</plugin>
+    </hardware>
+    <xacro:robot6R_ros2_control prefix="rob1_"/>
+    <xacro:robot6R_ros2_control prefix="rob2_"/>
+    <xacro:positioner_ros2_control prefix=""/>
+  </ros2_control>
 </robot>

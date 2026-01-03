@@ -105,6 +105,9 @@ add_library(${PROJECT_NAME} SHARED
   src/pose_controller.cpp
   src/axially_symmetric_controller.cpp
   src/positioner_controller.cpp
+  src/positioner_state_interface/positioner_state_interface.cpp
+  src/positioner_state_interface/loaned_state_interface.cpp
+  src/positioner_state_interface/topic_state_interface.cpp
   src/positioner_objectives/positioner_objective_plugin.cpp
 )
 target_link_libraries(${PROJECT_NAME}

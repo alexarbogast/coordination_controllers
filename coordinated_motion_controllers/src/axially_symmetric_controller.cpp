@@ -25,18 +25,16 @@ controller_interface::return_type AxiallySymmetricController::update(
     pose_params_ = pose_param_listener_->get_params();
   }
 
-  read_state_from_hardware(joint_state_);
+  KDL::JntArrayVel combined_state(n_pos_joints_ + n_robot_joints_);
+  get_combined_state(combined_state);
+
   const Setpoint* setpoint = setpoint_buffer_.readFromRT();
 
-  KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-  combined_positions.data << positioner_state_.readFromRT()->q.data.reverse(),
-      joint_state_.q.data;
-
   KDL::Jacobian coord_jac(n_robot_joints_ + n_pos_joints_);
-  coordinated_jacobian_solver_->JntToJac(combined_positions, coord_jac);
+  coordinated_jacobian_solver_->JntToJac(combined_state.q, coord_jac);
 
   KDL::Frame pose_kdl;
-  coordinated_fk_solver_->JntToCart(combined_positions, pose_kdl);
+  coordinated_fk_solver_->JntToCart(combined_state.q, pose_kdl);
 
   ctrl::Pose pose;
   ctrl::transformKDLToEigen(pose_kdl, pose);
@@ -62,8 +60,10 @@ controller_interface::return_type AxiallySymmetricController::update(
   ctrl::MatrixND Jr_pinv = ctrl::rightPinv(Jr);
   ctrl::MatrixND Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
 
-  ctrl::VectorND q_dot_pos =
-      positioner_state_.readFromRT()->qdot.data.reverse();
+  KDL::JntArrayVel test(n_pos_joints_);
+  pos_state_interface_->read(test);
+
+  ctrl::VectorND q_dot_pos = combined_state.qdot.data.head(n_pos_joints_);
 
   ctrl::VectorND joint_cmd =
       Jr_pinv * (cart_cmd - Jp * q_dot_pos) + (I - Jr_pinv * Jr) * h;

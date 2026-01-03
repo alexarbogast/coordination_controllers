@@ -24,8 +24,18 @@ coordinated_controller_base:
     description: "Name of the 'tool' reference frame",
     read_only: true,
   }
+  state_interface: {
+    type: string,
+    default_value: topic,
+    description: "The positioner state interface",
+    validation: {
+      one_of<>: [["topic", "loaned"]]
+    },
+    read_only: true,
+  }
   positioner_topic: {
     type: string,
+    default_value: "",
     description: "Name of the positioner feedback topic",
     read_only: true,
   }

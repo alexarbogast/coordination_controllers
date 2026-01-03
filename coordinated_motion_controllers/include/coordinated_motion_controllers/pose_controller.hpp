@@ -19,6 +19,7 @@
 
 #include <taskspace_controllers/setpoint.hpp>
 #include <task_priority_controllers/objectives/objective_plugin.hpp>
+#include <realtime_tools/realtime_buffer.hpp>
 
 #include <kdl/chainjnttojacsolver.hpp>
 

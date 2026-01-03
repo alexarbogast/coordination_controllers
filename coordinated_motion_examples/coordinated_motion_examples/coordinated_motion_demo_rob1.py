@@ -24,7 +24,7 @@ class CoordinatedControlDemoRob1(CoordinatedControlDemo):
         self.static_orient = robot_params[self.robot_type]["orient"]
 
     def small_circle(self):
-        tf = 7
+        tf = 15
         tt = np.linspace(0, tf, int(self.hz * tf))
         f, f_dot = circular_traj(1 / 7, tf, phase=np.pi)
 
@@ -41,9 +41,9 @@ class CoordinatedControlDemoRob1(CoordinatedControlDemo):
         self.path_viz.reset()
 
     def small_hypotrochoid(self):
-        tf = 7
+        tf = 15
         tt = np.linspace(0, tf, int(self.hz * tf))
-        f, f_dot = hypotrochoid_traj(3, 5, 4.5, tf, scaling=Order.THIRD)
+        f, f_dot = hypotrochoid_traj(3, 5, 4.5, tf, scaling=Order.FIRST)
 
         scaling = 1 / 43
         offset = np.array([-0.1, -0.175, 0.005])
@@ -59,7 +59,7 @@ class CoordinatedControlDemoRob1(CoordinatedControlDemo):
         self.path_viz.reset()
 
     def circle(self):
-        tf = 10.0
+        tf = 15.0
         tt = np.linspace(0, tf, int(self.hz * tf))
         f, f_dot = circular_traj(1 / 4, tf, phase=3 / 2 * np.pi)
 
@@ -76,10 +76,10 @@ class CoordinatedControlDemoRob1(CoordinatedControlDemo):
         self.path_viz.reset()
 
     def hypotrochoid(self):
-        tf = 12
+        tf = 30
         tt = np.linspace(0, tf, int(self.hz * tf))
         f, f_dot = hypotrochoid_traj(
-            3, 5, 4.5, tf, phase=5 / 3 * np.pi, scaling=Order.THIRD
+            3, 5, 4.5, tf, phase=5 / 3 * np.pi, scaling=Order.FIRST
         )
 
         scaling = 1 / 25

@@ -1,0 +1,29 @@
+// Copyright 2024 Alex Arbogast
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <coordinated_motion_controllers/positioner_state_interface/positioner_state_interface.hpp>
+
+namespace coordinated_motion_controllers
+{
+bool PositionerStateInterface::init(
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+    const std::vector<std::string>& joint_names,
+    const coordinated_controller_base::Params& params)
+{
+  joint_names_ = joint_names;
+  n_joints_ = joint_names_.size();
+  return true;
+}
+
+}  // namespace coordinated_motion_controllers

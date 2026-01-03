@@ -27,7 +27,7 @@ rob1_coordinated_pose_controller:
     base_link: rob1_base_link
     eef_link: rob1_tool
 
-    k_position: 10.0
+    k_position: 100.0
     k_orient: 10.0
 
     rr_objective_type: minimize_velocity # (default)
@@ -66,7 +66,7 @@ rob1_coordinated_as_controller:
     base_link: rob1_base_link
     eef_link: rob1_tool
 
-    k_position: 10.0
+    k_position: 100.0
     k_orient: 10.0
 
     rr_objective_type: minimize_velocity
@@ -75,7 +75,9 @@ rob1_coordinated_as_controller:
     k_attract: 1.0
     attractor: [0.25, 0.0, 0.0]
 
-    positioner_topic: /joint_states
+    state_interface: loaned
+    # positioner_topic: /joint_states
+
     setpoint_topic: setpoint
 
 
@@ -91,7 +93,7 @@ rob2_coordinated_pose_controller:
     base_link: rob2_base_link
     eef_link: rob2_tool
 
-    k_position: 10.0
+    k_position: 100.0
     k_orient: 10.0
 
     positioner_topic: /positioner/joint_states
@@ -115,7 +117,7 @@ rob2_coordinated_as_controller:
     base_link: rob2_base_link
     eef_link: rob2_tool
 
-    k_position: 10.0
+    k_position: 100.0
     k_orient: 10.0
 
     rr_objective_type: minimize_velocity
@@ -124,7 +126,9 @@ rob2_coordinated_as_controller:
     k_attract: 1.0
     attractor: [0.25, 0.0, 0.0]
 
-    positioner_topic: /joint_states
+    state_interface: loaned
+    # positioner_topic: /joint_states
+
     setpoint_topic: setpoint
 
 positioner_controller:
