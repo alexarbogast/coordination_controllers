@@ -45,6 +45,23 @@ objectives used for redundancy resolution and positioner control. The available
 controller types can be found in the [plugin
 description](./coordinated_motion_controllers/coordinated_controller_plugins.xml).
 
+#### Positioner State Interfaces
+
+This package provides two interchangeable implementations for accessing the positioner joint state:
+
+- **TopicStateInterface**
+  (`state_interface` = topic)
+  Reads positioner joint position and velocity from ROS topics. This mode is
+  suitable when the positioner is controlled by a separate process or
+  controller manager, or when loose synchronization is acceptable.
+
+- **LoanedStateInterface**
+  (`state_interface` = loaned)
+  Reads positioner joint position and velocity directly from ros2_control
+  loaned state interfaces. This provides deterministic, zero-copy access
+  within the controller update loop and enables tight synchronization when the
+  positioner is managed by the same controller manager.
+
 ## Running the Demos
 
 Launch the demo multi-robot system with the desired robot.
@@ -66,5 +83,6 @@ ros2 launch coordinated_motion_examples coordinated_motion_demo.launch.py robot_
 
 Modify the positioner and redundancy resolution objectives in the respective
 `coordinated_motion_examples/config/<robot_type>_controllers.yaml`.
+
 - [robot6R config](./coordinated_motion_examples/config/robot6R_controllers.yaml)
 - [robot7R config](./coordinated_motion_examples/config/robot7R_controllers.yaml)
