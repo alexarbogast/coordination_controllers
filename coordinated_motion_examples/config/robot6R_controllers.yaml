@@ -17,9 +17,6 @@ controller_manager:
 
 rob1_coordinated_pose_controller:
   ros__parameters:
-    positioner_joints:
-      - positioner_joint
-
     command_interfaces:
       - position
 
@@ -51,14 +48,13 @@ rob1_coordinated_pose_controller:
     # pos_objective:
     #   match_config: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
+    state_interface: topic
     positioner_topic: /joint_states
+
     setpoint_topic: setpoint
 
 rob1_coordinated_as_controller:
   ros__parameters:
-    positioner_joints:
-      - positioner_joint
-
     command_interfaces:
       - position
 
@@ -76,16 +72,11 @@ rob1_coordinated_as_controller:
     attractor: [0.25, 0.0, 0.0]
 
     state_interface: loaned
-    # positioner_topic: /joint_states
-
     setpoint_topic: setpoint
 
 
 rob2_coordinated_pose_controller:
   ros__parameters:
-    positioner_joints:
-      - positioner_joint
-
     command_interfaces:
       - position
 
@@ -102,14 +93,13 @@ rob2_coordinated_pose_controller:
     rr_objective_type: minimize_velocity
     pos_objective_type: minimize_velocity
 
+    state_interface: topic
     positioner_topic: /joint_states
+
     setpoint_topic: setpoint
 
 rob2_coordinated_as_controller:
   ros__parameters:
-    positioner_joints:
-      - positioner_joint
-
     command_interfaces:
       - position
 
@@ -127,8 +117,6 @@ rob2_coordinated_as_controller:
     attractor: [0.25, 0.0, 0.0]
 
     state_interface: loaned
-    # positioner_topic: /joint_states
-
     setpoint_topic: setpoint
 
 positioner_controller:

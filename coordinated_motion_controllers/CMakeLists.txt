@@ -53,8 +53,8 @@ generate_parameter_library(
 )
 
 generate_parameter_library(
-  pose_controller_parameters
-  src/pose_controller_parameters.yaml
+  coordinated_pose_controller_parameters
+  src/coord_pose_controller_parameters.yaml
 )
 
 generate_parameter_library(
@@ -112,7 +112,7 @@ add_library(${PROJECT_NAME} SHARED
 )
 target_link_libraries(${PROJECT_NAME}
   coordinated_controller_base_parameters
-  pose_controller_parameters
+  coordinated_pose_controller_parameters
   positioner_controller_parameters
   positioner_objectives
 )
@@ -145,7 +145,7 @@ install(
     positioner_objectives
     match_configuration_parameters
     coordinated_controller_base_parameters
-    pose_controller_parameters
+    coordinated_pose_controller_parameters
     positioner_controller_parameters
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib

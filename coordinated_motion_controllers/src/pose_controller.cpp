@@ -32,7 +32,7 @@ controller_interface::CallbackReturn PoseController::on_init()
   try
   {
     pose_param_listener_ =
-        std::make_shared<pose_controller::ParamListener>(get_node());
+        std::make_shared<coord_pose_controller::ParamListener>(get_node());
   }
   catch (const std::exception& e)
   {
