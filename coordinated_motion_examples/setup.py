@@ -19,7 +19,6 @@ setup(
     install_requires=[
         "setuptools",
         "numpy",
-        "numpy-quaternion",
     ],
     zip_safe=True,
     maintainer="Alex Arbogast",

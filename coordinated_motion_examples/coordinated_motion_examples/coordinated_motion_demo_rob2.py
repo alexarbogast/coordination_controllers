@@ -8,8 +8,8 @@ from taskspace_control_examples.trajectory import *
 from coordinated_motion_examples import CoordinatedControlDemo
 
 robot_params = {
-    "robot6R": {"orient": np.quaternion(1.0, 0.0, 0.0, 0.0)},
-    "robot7R": {"orient": np.quaternion(0.0, 1.0, 0.0, 0.0)},
+    "robot6R": {"orient": np.array([1.0, 0.0, 0.0, 0.0])},
+    "robot7R": {"orient": np.array([0.0, 1.0, 0.0, 0.0])},
 }
 
 

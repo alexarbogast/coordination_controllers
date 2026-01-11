@@ -1,9 +1,5 @@
-import numpy as np
-import quaternion
 import abc
-
 from std_msgs.msg import ColorRGBA
-
 from taskspace_control_examples import ControlDemo, PathVisualization
 
 
