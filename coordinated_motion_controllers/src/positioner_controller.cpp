@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <coordinated_motion_controllers/positioner_controller.hpp>
-#include <axially_symmetric_controllers/utility.hpp>
-
-#include <controller_interface/helpers.hpp>
+#include "coordinated_motion_controllers/positioner_controller.hpp"
+#include "taskspace_controllers/utility.hpp"
 
 namespace coordinated_motion_controllers
 {
@@ -243,6 +241,6 @@ void PositionerController::write_command(const KDL::JntArrayVel& cmd)
 
 }  // namespace coordinated_motion_controllers
 
-#include <pluginlib/class_list_macros.hpp>
+#include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::PositionerController,
                        controller_interface::ControllerInterface)

@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <coordinated_motion_controllers/pose_controller.hpp>
+#include "coordinated_motion_controllers/pose_controller.hpp"
 
 namespace coordinated_motion_controllers
 {

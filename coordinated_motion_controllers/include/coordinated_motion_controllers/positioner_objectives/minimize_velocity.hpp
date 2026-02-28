@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp>
+#include "coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp"
 
 namespace coordinated_motion_controllers
 {

@@ -40,7 +40,7 @@ def generate_launch_description():
                 "coordinated_pose_controller",
                 "coordinated_as_controller",
             ],
-            default_value="coordinated_pose_controller",
+            default_value="coordinated_as_controller",
             description="Which controller should be started?",
         )
     )

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp>
+#include "coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp"
 
 namespace coordinated_motion_controllers
 {

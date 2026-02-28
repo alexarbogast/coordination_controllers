@@ -14,12 +14,12 @@
 
 #pragma once
 
-#include <rclcpp_lifecycle/lifecycle_node.hpp>
-
-#include <taskspace_controllers/utility.hpp>
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 #include <kdl/chain.hpp>
 #include <kdl/jntarrayvel.hpp>
+
+#include "taskspace_controllers/utility.hpp"
 
 namespace coordinated_motion_controllers
 {

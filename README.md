@@ -1,6 +1,8 @@
 # Coordination Controllers
 
 [![license - apache 2.0](https://img.shields.io/:license-Apache%202.0-yellowgreen.svg)](https://opensource.org/licenses/Apache-2.0)
+[![ros - humble](https://img.shields.io/badge/ROS2-Humble-blue)](https://docs.ros.org/en/humble/index.html)
+[![ros - jazzy](https://img.shields.io/badge/ROS2-Jazzy-blue)](https://docs.ros.org/en/jazzy/index.html)
 
 **A ROS package providing coordinated motion controllers for the
 [ros_control](https://github.com/ros-controls/ros2_control) framework.** In

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <coordinated_motion_controllers/positioner_objectives/position_attractor.hpp>
+#include "coordinated_motion_controllers/positioner_objectives/position_attractor.hpp"
 #include <kdl/jacobian.hpp>
 
 namespace coordinated_motion_controllers
@@ -69,6 +69,6 @@ PositionAttractor::getJointControlCmd(const KDL::JntArrayVel& joint_state)
 
 }  // namespace coordinated_motion_controllers
 
-#include <pluginlib/class_list_macros.hpp>
+#include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::PositionAttractor,
                        coordinated_motion_controllers::PositionerObjective)

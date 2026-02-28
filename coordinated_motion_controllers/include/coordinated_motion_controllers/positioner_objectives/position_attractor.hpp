@@ -14,12 +14,11 @@
 
 #pragma once
 
-#include <coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp>
+#include "coordinated_motion_controllers/positioner_objectives/positioner_objective_plugin.hpp"
+#include "coordinated_motion_controllers/position_attractor_parameters.hpp"
 
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainjnttojacsolver.hpp>
-
-#include <coordinated_motion_controllers/position_attractor_parameters.hpp>
 
 namespace coordinated_motion_controllers
 {

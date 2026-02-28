@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <coordinated_motion_controllers/positioner_objectives/match_configuration.hpp>
+#include "coordinated_motion_controllers/positioner_objectives/match_configuration.hpp"
 
 const static std::string CONFIG_PARAM = "match_config";
 
@@ -69,6 +69,6 @@ MatchConfiguration::getJointControlCmd(const KDL::JntArrayVel& joint_state)
 
 }  // namespace coordinated_motion_controllers
 
-#include <pluginlib/class_list_macros.hpp>
+#include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::MatchConfiguration,
                        coordinated_motion_controllers::PositionerObjective)

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <controller_interface/controller_interface_base.hpp>
-#include <coordinated_motion_controllers/pose_controller.hpp>
-#include <axially_symmetric_controllers/utility.hpp>
+#include "controller_interface/controller_interface_base.hpp"
+#include "coordinated_motion_controllers/pose_controller.hpp"
+#include "axially_symmetric_controllers/utility.hpp"
 
 namespace coordinated_motion_controllers
 {
@@ -253,6 +253,6 @@ void PoseController::setpointCallback(
 
 }  // namespace coordinated_motion_controllers
 
-#include <pluginlib/class_list_macros.hpp>
+#include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(coordinated_motion_controllers::PoseController,
                        controller_interface::ControllerInterface)
