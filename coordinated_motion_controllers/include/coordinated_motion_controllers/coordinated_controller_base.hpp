@@ -83,6 +83,10 @@ protected:
   void write_robot_command(const KDL::JntArrayVel& cmd);
   void write_positioner_command(const ctrl::VectorND& cmd);
 
+  // Utility functions
+  bool check_manipulability(const KDL::Jacobian& jac);
+
+  // Callbacks
   using QueryPose = taskspace_control_msgs::srv::QueryPose;
   virtual bool queryPoseServiceCb(const std::shared_ptr<QueryPose::Request> req,
                                   std::shared_ptr<QueryPose::Response> resp);

@@ -14,7 +14,6 @@
 
 #include "controller_interface/controller_interface_base.hpp"
 #include "coordinated_motion_controllers/pose_controller.hpp"
-#include "axially_symmetric_controllers/utility.hpp"
 
 namespace coordinated_motion_controllers
 {
@@ -178,6 +177,12 @@ controller_interface::return_type PoseController::update(
 
   KDL::Jacobian coord_jac(n_robot_joints_ + n_pos_joints_);
   coordinated_jacobian_solver_->JntToJac(combined_state.q, coord_jac);
+
+  // Safety: bail out near singularities
+  if (!check_manipulability(coord_jac))
+  {
+    return controller_interface::return_type::OK;
+  }
 
   KDL::Frame pose_kdl;
   coordinated_fk_solver_->JntToCart(combined_state.q, pose_kdl);

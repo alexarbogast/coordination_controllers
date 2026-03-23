@@ -20,6 +20,7 @@
 #include "coordinated_motion_controllers/positioner_state_interface/topic_state_interface.hpp"
 #include "coordinated_motion_controllers/positioner_state_interface/loaned_state_interface.hpp"
 
+#include "taskspace_controllers/utility.hpp"
 #include "urdf/model.h"
 
 #include <kdl/jntarray.hpp>
@@ -385,6 +386,25 @@ void CoordinatedControllerBase::stop_motion()
       command_interfaces_[vel_ind * n_robot_joints_ + joint_ind].set_value(0.0);
     }
   }
+
+  // Zero position velocity suggestion
+  write_positioner_command(ctrl::VectorND::Zero(n_pos_joints_));
+}
+
+bool CoordinatedControllerBase::check_manipulability(const KDL::Jacobian& jac)
+{
+  const double w = ctrl::compute_manipulability(jac);
+  if (w < params_.manipulability_threshold)
+  {
+    RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(),
+                         500 /*ms*/,
+                         "Manipulability (%.6f) below threshold (%.6f) — "
+                         "zeroing output.",
+                         w, params_.manipulability_threshold);
+    stop_motion();
+    return false;
+  }
+  return true;
 }
 
 bool CoordinatedControllerBase::queryPoseServiceCb(

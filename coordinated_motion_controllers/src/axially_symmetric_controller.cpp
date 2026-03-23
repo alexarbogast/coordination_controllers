@@ -33,6 +33,12 @@ controller_interface::return_type AxiallySymmetricController::update(
   KDL::Jacobian coord_jac(n_robot_joints_ + n_pos_joints_);
   coordinated_jacobian_solver_->JntToJac(combined_state.q, coord_jac);
 
+  // Safety: bail out near singularities
+  if (!check_manipulability(coord_jac))
+  {
+    return controller_interface::return_type::OK;
+  }
+
   KDL::Frame pose_kdl;
   coordinated_fk_solver_->JntToCart(combined_state.q, pose_kdl);
 
