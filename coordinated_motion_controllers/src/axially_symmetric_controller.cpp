@@ -68,10 +68,9 @@ controller_interface::return_type AxiallySymmetricController::update(
   ctrl::VectorND joint_cmd =
       Jr_pinv * (cart_cmd - Jp * q_dot_pos) + (I - Jr_pinv * Jr) * h;
 
-  ctrl::VectorND new_position =
-      joint_state_.q.data + (joint_cmd * period.seconds());
-
-  auto cmd = ctrl::transformEigenToKDL(new_position, joint_cmd);
+  KDL::JntArray q_cmd = ctrl::transformEigenToKDL(joint_cmd);
+  auto cmd = ctrl::create_command(joint_state_.q, q_cmd, joint_limits_,
+                                  period.seconds());
   write_robot_command(cmd);
 
   // --- Suggested positioner command ---

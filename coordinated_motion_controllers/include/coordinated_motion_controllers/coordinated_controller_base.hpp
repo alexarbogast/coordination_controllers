@@ -20,9 +20,10 @@
 #include <kdl/chainjnttojacsolver.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 
-// ROS2 controller interface
+// ROS2 control
 #include "controller_interface/controller_interface.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
+#include "joint_limits/joint_limits.hpp"
 
 // ROS2 messages
 #include "sensor_msgs/msg/joint_state.hpp"
@@ -51,9 +52,6 @@ class CoordinatedControllerBase
   : public controller_interface::ControllerInterface
 {
 public:
-  using QueryPoseSrv = taskspace_control_msgs::srv::QueryPose;
-  using QueryPoseService = rclcpp::Service<QueryPoseSrv>::SharedPtr;
-
   virtual controller_interface::InterfaceConfiguration
   command_interface_configuration() const override;
 
@@ -78,6 +76,7 @@ public:
   on_shutdown(const rclcpp_lifecycle::State& previous_state) override;
 
 protected:
+  // Hardware interface methods
   void read_state_from_hardware(KDL::JntArrayVel& state);
   void get_combined_state(KDL::JntArrayVel& state);
   void stop_motion();
@@ -106,8 +105,7 @@ protected:
 
   // Kinematics
   KDL::Chain robot_chain_, coordinated_chain_;
-  KDL::JntArray upper_pos_limits_;
-  KDL::JntArray lower_pos_limits_;
+  std::vector<joint_limits::JointLimits> joint_limits_;
   std::unique_ptr<KDL::ChainFkSolverPos_recursive> coordinated_fk_solver_;
 
   // State tracking

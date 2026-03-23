@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "controller_interface/controller_interface_base.hpp"
 #include "coordinated_motion_controllers/coordinated_controller_base.hpp"
+
+#include "joint_limits/joint_limits_urdf.hpp"
 
 // positioner state interfaces
 #include "coordinated_motion_controllers/positioner_state_interface/topic_state_interface.hpp"
@@ -186,8 +187,8 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
   coordinated_fk_solver_ =
       std::make_unique<KDL::ChainFkSolverPos_recursive>(coordinated_chain_);
 
-  upper_pos_limits_.resize(n_robot_joints_);
-  lower_pos_limits_.resize(n_robot_joints_);
+  // Initialize the joint limits from the urdf
+  joint_limits_.resize(n_robot_joints_);
   for (size_t i = 0; i < n_robot_joints_; ++i)
   {
     const auto& jn = robot_joint_names_[i];
@@ -197,22 +198,8 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
       RCLCPP_ERROR(logger, "Joint '%s' not found in URDF.", jn.c_str());
       return controller_interface::CallbackReturn::ERROR;
     }
-    if (j->type == urdf::Joint::CONTINUOUS)
-    {
-      upper_pos_limits_(i) = std::numeric_limits<double>::quiet_NaN();
-      lower_pos_limits_(i) = std::numeric_limits<double>::quiet_NaN();
-    }
-    else if (j->limits)
-    {
-      upper_pos_limits_(i) = j->limits->upper;
-      lower_pos_limits_(i) = j->limits->lower;
-    }
-    else
-    {
-      RCLCPP_WARN(logger, "Joint %s has no limits; using NaN.", jn.c_str());
-      upper_pos_limits_(i) = std::numeric_limits<double>::quiet_NaN();
-      lower_pos_limits_(i) = std::numeric_limits<double>::quiet_NaN();
-    }
+
+    joint_limits::getJointLimits(j, joint_limits_[i]);
   }
 
   // Create positioner state interface
