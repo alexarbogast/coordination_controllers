@@ -14,7 +14,6 @@
 
 #include "controller_interface/controller_interface_base.hpp"
 #include "coordinated_motion_controllers/pose_controller.hpp"
-#include "axially_symmetric_controllers/utility.hpp"
 
 namespace coordinated_motion_controllers
 {
@@ -92,8 +91,7 @@ PoseController::on_configure(const rclcpp_lifecycle::State& previous_state)
     return CallbackReturn::FAILURE;
   }
 
-  if (!rr_objective_->init(node, robot_chain_, upper_pos_limits_,
-                           lower_pos_limits_))
+  if (!rr_objective_->init(node, robot_chain_, joint_limits_))
   {
     RCLCPP_ERROR(node->get_logger(),
                  "Failed to initialize redundancy resolution objective.");
@@ -180,6 +178,12 @@ controller_interface::return_type PoseController::update(
   KDL::Jacobian coord_jac(n_robot_joints_ + n_pos_joints_);
   coordinated_jacobian_solver_->JntToJac(combined_state.q, coord_jac);
 
+  // Safety: bail out near singularities
+  if (!check_manipulability(coord_jac))
+  {
+    return controller_interface::return_type::OK;
+  }
+
   KDL::Frame pose_kdl;
   coordinated_fk_solver_->JntToCart(combined_state.q, pose_kdl);
 
@@ -216,10 +220,9 @@ controller_interface::return_type PoseController::update(
   ctrl::VectorND joint_cmd =
       Jr_pinv * (cart_cmd - Jp * q_dot_pos) + (I - Jr_pinv * Jr) * h;
 
-  ctrl::VectorND new_position =
-      joint_state_.q.data + (joint_cmd * period.seconds());
-
-  auto cmd = ctrl::transformEigenToKDL(new_position, joint_cmd);
+  KDL::JntArray q_cmd = ctrl::transformEigenToKDL(joint_cmd);
+  auto cmd = ctrl::create_command(joint_state_.q, q_cmd, joint_limits_,
+                                  period.seconds());
   write_robot_command(cmd);
 
   // --- Suggested positioner command ---
