@@ -25,6 +25,7 @@ setup(
     maintainer_email="arbogastaw@gmail.com",
     description="ros2_control examples using coordinated motion controllers",
     license="Apache License, Version 2.0",
+    tests_require=['pytest'],
     entry_points={
         "console_scripts": [
             "coordinated_motion_demo_rob1 = \
