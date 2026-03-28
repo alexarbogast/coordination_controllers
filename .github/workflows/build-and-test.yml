@@ -21,3 +21,4 @@ jobs:
           ROS_REPO: main
           BUILDER: colcon
           ROS_WS: src
+          UPSTREAM_WORKSPACE: coordination_controllers.repos
