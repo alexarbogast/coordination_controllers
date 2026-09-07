@@ -89,3 +89,24 @@ Modify the positioner and redundancy resolution objectives in the respective
 
 - [robot6R config](./coordinated_motion_examples/config/robot6R_controllers.yaml)
 - [robot7R config](./coordinated_motion_examples/config/robot7R_controllers.yaml)
+
+## Publication
+
+This work is described in the following publication:
+
+> **A. Arbogast, J. Vaughan, and C. Saldaña**,
+> *Online Task-Space Motion Control for Positioner-Coordinated Multi-Robot Manufacturing Systems*,
+> **Robotics and Computer-Integrated Manufacturing**, vol. 103, 103409, 2027.
+> [DOI: 10.1016/j.rcim.2026.103409](https://doi.org/10.1016/j.rcim.2026.103409)
+
+If you use this work in your research, please cite:
+
+```bibtex
+@article{arbogast_online_2027,
+  title   = {Online Task-Space Motion Control for Positioner-Coordinated Multi-Robot Manufacturing Systems},
+  author  = {Arbogast, Alexander and Vaughan, Joshua and Salda{\~n}a, Christopher},
+  year    = {2027},
+  journal = {Robotics and Computer-Integrated Manufacturing},
+  volume  = {103},
+  doi     = {10.1016/j.rcim.2026.103409}
+}
