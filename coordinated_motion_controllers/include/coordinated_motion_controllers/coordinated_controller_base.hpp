@@ -114,8 +114,8 @@ protected:
 
   // State tracking
   KDL::JntArrayVel joint_state_;
-  KDL::JntArrayVel last_commanded_;
-  KDL::JntArrayVel last_reference_;
+  KDL::JntArrayVel joint_command_;
+  KDL::JntArrayVel joint_command_prev_;
 
   using PosSetpointPublisher = realtime_tools::RealtimePublisher<
       coordinated_control_msgs::msg::PositionerSetpoint>;

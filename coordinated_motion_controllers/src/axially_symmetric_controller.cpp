@@ -66,18 +66,15 @@ controller_interface::return_type AxiallySymmetricController::update(
   ctrl::MatrixND Jr_pinv = ctrl::rightPinv(Jr);
   ctrl::MatrixND Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
 
-  KDL::JntArrayVel test(n_pos_joints_);
-  pos_state_interface_->read(test);
-
   ctrl::VectorND q_dot_pos = combined_state.qdot.data.head(n_pos_joints_);
 
-  ctrl::VectorND joint_cmd =
+  ctrl::VectorND q_dot_cmd =
       Jr_pinv * (cart_cmd - Jp * q_dot_pos) + (I - Jr_pinv * Jr) * h;
 
-  KDL::JntArray q_cmd = ctrl::transformEigenToKDL(joint_cmd);
-  auto cmd = ctrl::create_command(joint_state_.q, q_cmd, joint_limits_,
-                                  period.seconds());
-  write_robot_command(cmd);
+  ctrl::integrate_joint_velocity(joint_state_.q.data, q_dot_cmd, joint_limits_,
+                                 period.seconds(), joint_command_);
+
+  write_robot_command(joint_command_);
 
   // --- Suggested positioner command ---
   ctrl::VectorND robot_qdot_attempt =

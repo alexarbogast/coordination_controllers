@@ -170,9 +170,10 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
   n_pos_joints_ = positioner_joint_names_.size();
 
   // allocate dynamic memory
-  last_reference_.resize(n_robot_joints_);
-  last_commanded_ = last_reference_;
-  joint_state_ = last_reference_;
+  joint_command_.resize(n_robot_joints_);
+  joint_command_prev_.resize(n_robot_joints_);
+  joint_state_.resize(n_robot_joints_);
+  joint_limits_.resize(n_robot_joints_);
 
   if (params_.command_interfaces.empty())
   {
@@ -189,7 +190,6 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
       std::make_unique<KDL::ChainFkSolverPos_recursive>(coordinated_chain_);
 
   // Initialize the joint limits from the urdf
-  joint_limits_.resize(n_robot_joints_);
   for (size_t i = 0; i < n_robot_joints_; ++i)
   {
     const auto& jn = robot_joint_names_[i];
@@ -322,7 +322,7 @@ void CoordinatedControllerBase::read_state_from_hardware(
 
   if (nan_position)
   {
-    state.q = last_commanded_.q;
+    state.q = joint_command_prev_.q;
   }
 }
 
@@ -357,7 +357,7 @@ void CoordinatedControllerBase::write_robot_command(const KDL::JntArrayVel& cmd)
           cmd.qdot(joint_ind));
     }
   }
-  last_commanded_ = cmd;
+  joint_command_prev_ = cmd;
 }
 
 void CoordinatedControllerBase::write_positioner_command(
