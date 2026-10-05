@@ -111,8 +111,6 @@ protected:
   bool has_velocity_command_interface_ = false;
   bool has_position_state_interface_ = false;
   bool has_velocity_state_interface_ = false;
-  size_t position_state_interface_index_ = 0;
-  size_t velocity_state_interface_index_ = 0;
 
   // Controller parameters
   std::vector<std::string> robot_joint_names_, positioner_joint_names_;

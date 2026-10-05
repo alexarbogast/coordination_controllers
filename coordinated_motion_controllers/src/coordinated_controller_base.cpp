@@ -41,11 +41,17 @@ CoordinatedControllerBase::command_interface_configuration() const
   controller_interface::InterfaceConfiguration cfg;
   cfg.type = controller_interface::interface_configuration_type::INDIVIDUAL;
   cfg.names.reserve(n_robot_joints_ * params_.command_interfaces.size());
-  for (const auto& type : params_.command_interfaces)
+
+  for (const auto& type : allowed_interface_types_)
   {
+    if (!ctrl::contains_interface_type(params_.command_interfaces, type))
+    {
+      continue;
+    }
+
     for (const auto& joint : robot_joint_names_)
     {
-      cfg.names.push_back(joint + std::string("/").append(type));
+      cfg.names.push_back(joint + "/" + type);
     }
   }
   return cfg;
@@ -56,13 +62,18 @@ CoordinatedControllerBase::state_interface_configuration() const
 {
   controller_interface::InterfaceConfiguration cfg;
   cfg.type = controller_interface::interface_configuration_type::INDIVIDUAL;
-
   cfg.names.reserve(n_robot_joints_ * params_.state_interfaces.size());
-  for (const auto& type : params_.state_interfaces)
+
+  for (const auto& type : allowed_interface_types_)
   {
+    if (!ctrl::contains_interface_type(params_.state_interfaces, type))
+    {
+      continue;
+    }
+
     for (const auto& joint : robot_joint_names_)
     {
-      cfg.names.push_back(joint + std::string("/").append(type));
+      cfg.names.push_back(joint + "/" + type);
     }
   }
 
@@ -71,10 +82,8 @@ CoordinatedControllerBase::state_interface_configuration() const
   {
     for (const auto& joint : positioner_joint_names_)
     {
-      cfg.names.push_back(
-          joint + std::string("/").append(hardware_interface::HW_IF_POSITION));
-      cfg.names.push_back(
-          joint + std::string("/").append(hardware_interface::HW_IF_VELOCITY));
+      cfg.names.push_back(joint + "/" + hardware_interface::HW_IF_POSITION);
+      cfg.names.push_back(joint + "/" + hardware_interface::HW_IF_VELOCITY);
     }
   }
   return cfg;
@@ -124,21 +133,6 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
                  "CoordinatedControllerBase requires a position state "
                  "interface");
     return controller_interface::CallbackReturn::ERROR;
-  }
-
-  position_state_interface_index_ =
-      std::distance(params_.state_interfaces.begin(),
-                    std::find(params_.state_interfaces.begin(),
-                              params_.state_interfaces.end(),
-                              hardware_interface::HW_IF_POSITION));
-
-  if (has_velocity_state_interface_)
-  {
-    velocity_state_interface_index_ =
-        std::distance(params_.state_interfaces.begin(),
-                      std::find(params_.state_interfaces.begin(),
-                                params_.state_interfaces.end(),
-                                hardware_interface::HW_IF_VELOCITY));
   }
 
   std::string urdf_xml;
@@ -323,7 +317,7 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_activate(
     {
       RCLCPP_ERROR(get_node()->get_logger(),
                    "Failed to bind positioner state interfaces. "
-                   "Is your positioner in the same system interface as you "
+                   "Is your positioner in the same system interface as your "
                    "robot?");
       return CallbackReturn::ERROR;
     }
@@ -360,17 +354,38 @@ void CoordinatedControllerBase::read_state_from_hardware(
     KDL::JntArrayVel& state)
 {
   bool nan_position = false;
-  size_t pos_ind = 0;
   for (size_t joint_ind = 0; joint_ind < n_robot_joints_; ++joint_ind)
   {
-    state.q(joint_ind) =
-        state_interfaces_[pos_ind * n_robot_joints_ + joint_ind].get_value();
+    state.q(joint_ind) = state_interfaces_[joint_ind].get_value();
     nan_position |= std::isnan(state.q(joint_ind));
   }
 
   if (nan_position)
   {
     state.q = joint_command_prev_.q;
+  }
+
+  bool nan_velocity = false;
+  if (has_velocity_state_interface_)
+  {
+    const auto velocity_offset =
+        has_position_state_interface_ ? n_robot_joints_ : 0;
+
+    for (size_t joint_ind = 0; joint_ind < n_robot_joints_; ++joint_ind)
+    {
+      state.qdot(joint_ind) =
+          state_interfaces_[velocity_offset + joint_ind].get_value();
+      nan_velocity |= std::isnan(state.qdot(joint_ind));
+    }
+  }
+  else
+  {
+    KDL::SetToZero(state.qdot);
+  }
+
+  if (nan_velocity)
+  {
+    state.qdot = joint_command_prev_.qdot;
   }
 }
 
@@ -388,23 +403,26 @@ void CoordinatedControllerBase::get_combined_state(KDL::JntArrayVel& state)
 
 void CoordinatedControllerBase::write_robot_command(const KDL::JntArrayVel& cmd)
 {
-  size_t pos_ind = 0;
-  size_t vel_ind = (has_position_command_interface_) ?
-                       pos_ind + has_velocity_command_interface_ :
-                       pos_ind;
-  for (size_t joint_ind = 0; joint_ind < n_robot_joints_; ++joint_ind)
+  if (has_position_command_interface_)
   {
-    if (has_position_command_interface_)
+    for (size_t joint_ind = 0; joint_ind < n_robot_joints_; ++joint_ind)
     {
-      command_interfaces_[pos_ind * n_robot_joints_ + joint_ind].set_value(
-          cmd.q(joint_ind));
+      command_interfaces_[joint_ind].set_value(cmd.q(joint_ind));
     }
-    if (has_velocity_command_interface_)
+  }
+
+  if (has_velocity_command_interface_)
+  {
+    const auto velocity_offset =
+        has_position_command_interface_ ? n_robot_joints_ : 0;
+
+    for (size_t joint_ind = 0; joint_ind < n_robot_joints_; ++joint_ind)
     {
-      command_interfaces_[vel_ind * n_robot_joints_ + joint_ind].set_value(
+      command_interfaces_[velocity_offset + joint_ind].set_value(
           cmd.qdot(joint_ind));
     }
   }
+
   joint_command_prev_ = cmd;
 }
 
@@ -421,21 +439,22 @@ void CoordinatedControllerBase::write_positioner_command(
 
 void CoordinatedControllerBase::stop_motion()
 {
-  // Stop motion for velocity control
-  if (has_velocity_command_interface_)
+  if (!has_velocity_command_interface_ ||
+      command_interfaces_.size() < n_robot_joints_)
   {
-    size_t pos_ind = 0;
-    size_t vel_ind = (has_position_command_interface_) ?
-                         pos_ind + has_velocity_command_interface_ :
-                         pos_ind;
-
-    for (size_t joint_ind = 0; joint_ind < n_robot_joints_; ++joint_ind)
-    {
-      command_interfaces_[vel_ind * n_robot_joints_ + joint_ind].set_value(0.0);
-    }
+    return;
   }
 
-  // Zero position velocity suggestion
+  const auto velocity_offset =
+      has_position_command_interface_ ? n_robot_joints_ : 0;
+
+  // Stop motion for velocity control
+  for (size_t joint_ind = 0; joint_ind < n_robot_joints_; ++joint_ind)
+  {
+    command_interfaces_[velocity_offset + joint_ind].set_value(0.0);
+  }
+
+  // Zero positioner velocity suggestion
   write_positioner_command(ctrl::VectorND::Zero(n_pos_joints_));
 }
 
