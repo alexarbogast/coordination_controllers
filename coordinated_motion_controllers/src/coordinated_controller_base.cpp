@@ -57,15 +57,17 @@ CoordinatedControllerBase::state_interface_configuration() const
   controller_interface::InterfaceConfiguration cfg;
   cfg.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
-  // use only position feedback for now
-  for (const auto& joint : robot_joint_names_)
+  cfg.names.reserve(n_robot_joints_ * params_.state_interfaces.size());
+  for (const auto& type : params_.state_interfaces)
   {
-    cfg.names.push_back(
-        joint + std::string("/").append(hardware_interface::HW_IF_POSITION));
+    for (const auto& joint : robot_joint_names_)
+    {
+      cfg.names.push_back(joint + std::string("/").append(type));
+    }
   }
 
   // handle the positioner_state_interface == loaned case
-  if (params_.state_interface == "loaned")
+  if (params_.positioner_state_interface == "loaned")
   {
     for (const auto& joint : positioner_joint_names_)
     {
@@ -104,6 +106,40 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
 {
   auto logger = get_node()->get_logger();
   params_ = param_listener_->get_params();
+
+  has_position_command_interface_ = ctrl::contains_interface_type(
+      params_.command_interfaces, hardware_interface::HW_IF_POSITION);
+  has_velocity_command_interface_ = ctrl::contains_interface_type(
+      params_.command_interfaces, hardware_interface::HW_IF_VELOCITY);
+
+  has_position_state_interface_ = ctrl::contains_interface_type(
+      params_.state_interfaces, hardware_interface::HW_IF_POSITION);
+  has_velocity_state_interface_ = ctrl::contains_interface_type(
+      params_.state_interfaces, hardware_interface::HW_IF_VELOCITY);
+
+  // Find interface based on type instead of assuming order
+  if (!has_position_state_interface_)
+  {
+    RCLCPP_FATAL(logger,
+                 "CoordinatedControllerBase requires a position state "
+                 "interface");
+    return controller_interface::CallbackReturn::ERROR;
+  }
+
+  position_state_interface_index_ =
+      std::distance(params_.state_interfaces.begin(),
+                    std::find(params_.state_interfaces.begin(),
+                              params_.state_interfaces.end(),
+                              hardware_interface::HW_IF_POSITION));
+
+  if (has_velocity_state_interface_)
+  {
+    velocity_state_interface_index_ =
+        std::distance(params_.state_interfaces.begin(),
+                      std::find(params_.state_interfaces.begin(),
+                                params_.state_interfaces.end(),
+                                hardware_interface::HW_IF_VELOCITY));
+  }
 
   std::string urdf_xml;
 #ifdef COORDINATED_CONTROLLERS_JAZZY
@@ -179,17 +215,6 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
   KDL::SetToZero(joint_command_prev_);
   KDL::SetToZero(joint_state_);
 
-  if (params_.command_interfaces.empty())
-  {
-    RCLCPP_ERROR(logger, "'command_interfaces' parameter was empty");
-    return controller_interface::CallbackReturn::FAILURE;
-  }
-
-  has_position_command_interface_ = ctrl::contains_interface_type(
-      params_.command_interfaces, hardware_interface::HW_IF_POSITION);
-  has_velocity_command_interface_ = ctrl::contains_interface_type(
-      params_.command_interfaces, hardware_interface::HW_IF_VELOCITY);
-
   coordinated_fk_solver_ =
       std::make_unique<KDL::ChainFkSolverPos_recursive>(coordinated_chain_);
 
@@ -208,11 +233,11 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
   }
 
   // Create positioner state interface
-  if (params_.state_interface == "topic")
+  if (params_.positioner_state_interface == "topic")
   {
     pos_state_interface_ = std::make_unique<TopicStateInterface>();
   }
-  else if (params_.state_interface == "loaned")
+  else if (params_.positioner_state_interface == "loaned")
   {
     pos_state_interface_ = std::make_unique<LoanedStateInterface>();
   }
@@ -255,6 +280,27 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
       std::bind(&CoordinatedControllerBase::queryPoseServiceCb, this,
                 std::placeholders::_1, std::placeholders::_2));
 
+  RCLCPP_INFO(get_node()->get_logger(), "Diagnostics enabled: %s",
+              params_.enable_diagnostics ? "true" : "false");
+  if (params_.enable_diagnostics)
+  {
+    diagnostic_pub_ =
+        get_node()->create_publisher<taskspace_control_msgs::msg::Diagnostic>(
+            "~/diagnostics", rclcpp::SystemDefaultsQoS());
+    rt_diagnostic_pub_ = std::make_unique<realtime_tools::RealtimePublisher<
+        taskspace_control_msgs::msg::Diagnostic>>(diagnostic_pub_);
+
+    auto init_joint_state = [&](auto& js) {
+      js.name = robot_joint_names_;
+      js.position.resize(n_robot_joints_);
+      js.velocity.resize(n_robot_joints_);
+    };
+
+    init_joint_state(rt_diagnostic_pub_->msg_.command);
+    init_joint_state(rt_diagnostic_pub_->msg_.state);
+    init_joint_state(rt_diagnostic_pub_->msg_.state_error);
+  }
+
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
@@ -269,7 +315,7 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_activate(
   // get parameters from the listener in case they were updated
   params_ = param_listener_->get_params();
 
-  if (params_.state_interface == "loaned")
+  if (params_.positioner_state_interface == "loaned")
   {
     auto loaned_iface =
         dynamic_cast<LoanedStateInterface*>(pos_state_interface_.get());
@@ -437,6 +483,50 @@ bool CoordinatedControllerBase::queryPoseServiceCb(
                        resp->pose.orientation.z, resp->pose.orientation.w);
 
   return true;
+}
+
+void CoordinatedControllerBase::publish_diagnostics(
+    const rclcpp::Time& time, const KDL::JntArrayVel& joint_cmd,
+    const KDL::JntArrayVel& joint_fb, const ctrl::Pose& pose_cmd,
+    const ctrl::Pose& pose_fb)
+{
+  if (!rt_diagnostic_pub_ || !rt_diagnostic_pub_->trylock())
+    return;
+
+  ctrl::Vector3D trans_error, orient_error;
+  ctrl::computePoseError(pose_cmd, pose_fb, trans_error, orient_error);
+
+  auto& msg = rt_diagnostic_pub_->msg_;
+  msg.header.stamp = time;
+
+  Eigen::Map<ctrl::VectorND>(msg.command.position.data(), n_robot_joints_) =
+      joint_cmd.q.data;
+  Eigen::Map<ctrl::VectorND>(msg.command.velocity.data(), n_robot_joints_) =
+      joint_cmd.qdot.data;
+  Eigen::Map<ctrl::VectorND>(msg.state.position.data(), n_robot_joints_) =
+      joint_fb.q.data;
+  Eigen::Map<ctrl::VectorND>(msg.state_error.position.data(), n_robot_joints_) =
+      joint_cmd.q.data - joint_fb.q.data;
+
+  if (has_velocity_state_interface_)
+  {
+    Eigen::Map<ctrl::VectorND>(msg.state.velocity.data(), n_robot_joints_) =
+        joint_fb.qdot.data;
+    Eigen::Map<ctrl::VectorND>(msg.state_error.velocity.data(),
+                               n_robot_joints_) =
+        joint_cmd.qdot.data - joint_fb.qdot.data;
+  }
+
+  msg.setpoint.pose = ctrl::transformEigenToROS(pose_cmd);
+  msg.pose.pose = ctrl::transformEigenToROS(pose_fb);
+
+  msg.position_error = ctrl::transformEigenToROS(trans_error);
+  msg.position_error_norm = trans_error.norm();
+
+  msg.orientation_error = ctrl::transformEigenToROS(orient_error);
+  msg.orientation_error_norm = orient_error.norm();
+
+  rt_diagnostic_pub_->unlockAndPublish();
 }
 
 }  // namespace coordinated_motion_controllers

@@ -53,13 +53,13 @@ description](./coordinated_motion_controllers/coordinated_controller_plugins.xml
 This package provides two interchangeable implementations for accessing the positioner joint state:
 
 - **TopicStateInterface**
-  (`state_interface` = topic)
+  (`positioner_state_interface` = topic)
   Reads positioner joint position and velocity from ROS topics. This mode is
   suitable when the positioner is controlled by a separate process or
   controller manager, or when loose synchronization is acceptable.
 
 - **LoanedStateInterface**
-  (`state_interface` = loaned)
+  (`positioner_state_interface` = loaned)
   Reads positioner joint position and velocity directly from ros2_control
   loaned state interfaces. This provides deterministic, zero-copy access
   within the controller update loop and enables tight synchronization when the
