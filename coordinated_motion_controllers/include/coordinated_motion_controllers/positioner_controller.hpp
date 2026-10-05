@@ -93,8 +93,8 @@ private:
 
   // State tracking
   KDL::JntArrayVel joint_state_;
-  KDL::JntArrayVel last_commanded_;
-  KDL::JntArrayVel last_reference_;
+  KDL::JntArrayVel joint_command_;
+  KDL::JntArrayVel joint_command_prev_;
 };
 
 }  // namespace coordinated_motion_controllers

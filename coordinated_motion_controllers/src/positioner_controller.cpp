@@ -119,9 +119,13 @@ controller_interface::CallbackReturn PositionerController::on_configure(
   n_joints_ = params_.joints.size();
 
   // allocate dynamic memory
-  last_reference_.resize(n_joints_);
-  last_commanded_ = last_reference_;
-  joint_state_ = last_reference_;
+  joint_command_.resize(n_joints_);
+  joint_command_prev_.resize(n_joints_);
+  joint_state_.resize(n_joints_);
+
+  KDL::SetToZero(joint_command_);
+  KDL::SetToZero(joint_command_prev_);
+  KDL::SetToZero(joint_state_);
 
   if (params_.command_interfaces.empty())
   {
@@ -213,7 +217,7 @@ void PositionerController::read_state_from_hardware(KDL::JntArrayVel& state)
 
   if (nan_position)
   {
-    state.q = last_commanded_.q;
+    state.q = joint_command_prev_.q;
   }
 }
 
@@ -236,7 +240,7 @@ void PositionerController::write_command(const KDL::JntArrayVel& cmd)
           cmd.qdot(joint_ind));
     }
   }
-  last_commanded_ = cmd;
+  joint_command_prev_ = cmd;
 }
 
 }  // namespace coordinated_motion_controllers
