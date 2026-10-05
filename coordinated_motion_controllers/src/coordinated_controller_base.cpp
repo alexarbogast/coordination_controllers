@@ -175,6 +175,10 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_configure(
   joint_state_.resize(n_robot_joints_);
   joint_limits_.resize(n_robot_joints_);
 
+  KDL::SetToZero(joint_command_);
+  KDL::SetToZero(joint_command_prev_);
+  KDL::SetToZero(joint_state_);
+
   if (params_.command_interfaces.empty())
   {
     RCLCPP_ERROR(logger, "'command_interfaces' parameter was empty");
