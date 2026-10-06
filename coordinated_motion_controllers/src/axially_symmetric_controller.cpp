@@ -187,6 +187,17 @@ controller_interface::return_type AxiallySymmetricController::update(
 
   pos_setpoint = pos_setpoint.reverse();
   write_positioner_command(pos_setpoint);
+
+  // Controller diagnostics
+  ctrl::Pose current_pose;
+  ctrl::Pose setpoint_pose;
+
+  ctrl::transformKDLToEigen(pose_kdl, current_pose);
+  ctrl::transformKDLToEigen(setpoint->pose, setpoint_pose);
+
+  publish_diagnostics(time, joint_command_, joint_state_, setpoint_pose,
+                      current_pose);
+
   return controller_interface::return_type::OK;
 }
 
