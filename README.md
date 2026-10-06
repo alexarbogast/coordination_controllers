@@ -90,6 +90,17 @@ Modify the positioner and redundancy resolution objectives in the respective
 - [robot6R config](./coordinated_motion_examples/config/robot6R_controllers.yaml)
 - [robot7R config](./coordinated_motion_examples/config/robot7R_controllers.yaml)
 
+## Controller Diagnostics
+
+The `enable_diagnostics` parameter provides a mechanism for diagnosing the coordinated controllers.
+When set to `true`, the controllers publish a [`Diagnostic.msg`](https://github.com/alexarbogast/taskspace_control/blob/ros2/taskspace_control_msgs/msg/Diagnostic.msg) message emitting the following:
+
+- Commanded joint state, feedback joint state, and joint state error
+- Desired pose (controller setpoint), feedback pose, and pose error -- in the coordinated frame
+- Translation and orientation error magnitudes
+
+The diagnostic publisher is disabled by default.
+
 ## Publication
 
 This work is described in the following publication:
@@ -110,3 +121,4 @@ If you use this work in your research, please cite:
   volume  = {103},
   doi     = {10.1016/j.rcim.2026.103409}
 }
+```
