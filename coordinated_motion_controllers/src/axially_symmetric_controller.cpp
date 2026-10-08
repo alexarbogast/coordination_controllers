@@ -63,7 +63,7 @@ controller_interface::return_type AxiallySymmetricController::update(
   ctrl::MatrixND I = ctrl::MatrixND::Identity(n_robot_joints_, n_robot_joints_);
   ctrl::MatrixND Jr =
       coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
-  ctrl::MatrixND Jr_pinv = ctrl::rightPinv(Jr);
+  ctrl::MatrixND Jr_pinv = ctrl::pseudoInverse(Jr);
   ctrl::MatrixND Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
 
   ctrl::VectorND q_dot_pos = combined_state.qdot.data.head(n_pos_joints_);
@@ -81,8 +81,9 @@ controller_interface::return_type AxiallySymmetricController::update(
       positioner_objective_->getJointControlCmd(joint_state_);
 
   ctrl::VectorND pos_setpoint =
-      // ctrl::dampedPinv(Jp, 0.1) * (cart_cmd - Jr * robot_qdot_attempt);
-      ctrl::leftPinv(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
+      // ctrl::dampedPseudoInverse(Jp, 0.1) * (cart_cmd - Jr *
+      // robot_qdot_attempt);
+      ctrl::pseudoInverse(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
 
   pos_setpoint = pos_setpoint.reverse();
   write_positioner_command(pos_setpoint);
