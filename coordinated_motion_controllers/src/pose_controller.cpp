@@ -147,18 +147,13 @@ PoseController::on_activate(const rclcpp_lifecycle::State& previous_state)
   // initialize joint state from hardware
   read_state_from_hardware(joint_state_);
 
-  KDL::JntArrayVel pos_state(n_pos_joints_);
-  pos_state_interface_->read(pos_state);
-
-  KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-  combined_positions.data << pos_state.q.data.reverse(), joint_state_.q.data;
+  KDL::JntArrayVel combined_state(n_pos_joints_ + n_robot_joints_);
+  get_combined_state(combined_state);
 
   Setpoint init_setpoint;
-  coordinated_fk_solver_->JntToCart(combined_positions, init_setpoint.pose);
+  coordinated_fk_solver_->JntToCart(combined_state.q, init_setpoint.pose);
   setpoint_buffer_.writeFromNonRT(std::move(init_setpoint));
 
-  RCLCPP_INFO(get_node()->get_logger(),
-              "Activated CoordinatedPoseController...");
   return CallbackReturn::SUCCESS;
 }
 

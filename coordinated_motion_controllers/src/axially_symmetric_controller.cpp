@@ -13,10 +13,101 @@
 // limitations under the License.
 
 #include "coordinated_motion_controllers/axially_symmetric_controller.hpp"
-#include "axially_symmetric_controllers/utility.hpp"
 
 namespace coordinated_motion_controllers
 {
+
+controller_interface::CallbackReturn AxiallySymmetricController::on_init()
+{
+  // Initialize base class
+  if (PoseController::on_init() !=
+      controller_interface::CallbackReturn::SUCCESS)
+  {
+    return controller_interface::CallbackReturn::ERROR;
+  }
+
+  // Initialize the AxiallySymmetricController
+  try
+  {
+    as_param_listener_ =
+        std::make_shared<axially_symmetric_controller::ParamListener>(
+            get_node());
+  }
+  catch (const std::exception& e)
+  {
+    fprintf(stderr,
+            "Exception thrown during controller's init with message: %s \n",
+            e.what());
+    return controller_interface::CallbackReturn::ERROR;
+  }
+
+  return controller_interface::CallbackReturn::SUCCESS;
+}
+
+controller_interface::CallbackReturn AxiallySymmetricController::on_configure(
+    const rclcpp_lifecycle::State& previous_state)
+{
+  // Configure the base class
+  if (PoseController::on_configure(previous_state) !=
+      controller_interface::CallbackReturn::SUCCESS)
+  {
+    return controller_interface::CallbackReturn::ERROR;
+  }
+
+  // Configure the AxiallySymmetricController
+  as_params_ = as_param_listener_->get_params();
+  auto& tf_axis = as_params_.eef_frame_axis;
+  auto& sf_axis = as_params_.setpoint_frame_axis;
+
+  tool_frame_axis_ = ctrl::Vector3D(tf_axis[0], tf_axis[1], tf_axis[2]);
+  setpoint_frame_axis_ = ctrl::Vector3D(sf_axis[0], sf_axis[1], sf_axis[2]);
+
+  return controller_interface::CallbackReturn::SUCCESS;
+}
+
+controller_interface::CallbackReturn AxiallySymmetricController::on_activate(
+    const rclcpp_lifecycle::State& previous_state)
+{
+  // Activate base class
+  if (CoordinatedControllerBase::on_activate(previous_state) !=
+      controller_interface::CallbackReturn::SUCCESS)
+  {
+    return controller_interface::CallbackReturn::ERROR;
+  }
+
+  // Initialize joint state from hardware
+  read_state_from_hardware(joint_state_);
+
+  KDL::JntArrayVel combined_state(n_pos_joints_ + n_robot_joints_);
+  get_combined_state(combined_state);
+
+  Setpoint fk;
+  coordinated_fk_solver_->JntToCart(combined_state.q, fk.pose);
+
+  // Initialize a pose with the setpoint_frame_axis_ aiming
+  // in the direction of the tool_frame_axis_
+  ctrl::Matrix3D R_fk;
+  ctrl::transformKDLToEigen(fk.pose.M, R_fk);
+  ctrl::Vector3D a_target = R_fk * tool_frame_axis_;
+  a_target.normalize();
+
+  ctrl::Vector3D a_set = setpoint_frame_axis_;
+  a_set.normalize();
+
+  ctrl::Quaternion q_align = ctrl::Quaternion::FromTwoVectors(a_set, a_target);
+
+  Eigen::AngleAxisd twist(0.0, a_target);
+  ctrl::Quaternion q_final = twist * q_align;
+  ctrl::Matrix3D R = q_final.toRotationMatrix();
+
+  Setpoint init_setpoint;
+  init_setpoint.pose.M = ctrl::transformEigenToKDL(R);
+  init_setpoint.pose.p = fk.pose.p;  // keep same position
+
+  setpoint_buffer_.writeFromNonRT(std::move(init_setpoint));
+  return CallbackReturn::SUCCESS;
+}
+
 controller_interface::return_type AxiallySymmetricController::update(
     const rclcpp::Time& time, const rclcpp::Duration& period)
 {
@@ -81,8 +172,6 @@ controller_interface::return_type AxiallySymmetricController::update(
       positioner_objective_->getJointControlCmd(joint_state_);
 
   ctrl::VectorND pos_setpoint =
-      // ctrl::dampedPseudoInverse(Jp, 0.1) * (cart_cmd - Jr *
-      // robot_qdot_attempt);
       ctrl::pseudoInverse(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
 
   pos_setpoint = pos_setpoint.reverse();
