@@ -133,34 +133,43 @@ controller_interface::return_type AxiallySymmetricController::update(
   KDL::Frame pose_kdl;
   coordinated_fk_solver_->JntToCart(combined_state.q, pose_kdl);
 
-  ctrl::Pose pose;
-  ctrl::transformKDLToEigen(pose_kdl, pose);
+  // --- Error computation ---
+  ctrl::Matrix3D R_fk, R_setpoint;
+  ctrl::transformKDLToEigen(pose_kdl.M, R_fk);
+  ctrl::transformKDLToEigen(setpoint->pose.M, R_setpoint);
 
-  ctrl::Pose sp_pose;
-  ctrl::transformKDLToEigen(setpoint->pose, sp_pose);
+  ctrl::Vector3D a_current = R_fk * tool_frame_axis_;
+  ctrl::Vector3D a_desired = R_setpoint * setpoint_frame_axis_;
 
-  ctrl::AngleAxis aa(sp_pose.rotation() * pose.rotation().inverse());
-  ctrl::Vector3D orient_error = aa.axis() * aa.angle();
-  ctrl::Vector3D trans_error(sp_pose.translation() - pose.translation());
+  a_current.normalize();
+  a_desired.normalize();
 
-  ctrl::Vector5D cart_cmd;
-  cart_cmd << pose_params_.k_position * trans_error + setpoint->twist.head<3>(),
-      pose_params_.k_orient * orient_error;
+  ctrl::Vector3D pos_error((setpoint->pose.p - pose_kdl.p).data);
+  ctrl::Vector3D axis_error = a_current.cross(a_desired).cross(a_current);
 
-  // --- Redundancy resolution ---
-  ctrl::VectorND h = rr_objective_->getJointControlCmd(joint_state_);
+  // --- Command generation ---
+  ctrl::Vector6D task_cmd;
+  task_cmd << pose_params_.k_position * pos_error + setpoint->twist.head<3>(),
+      pose_params_.k_orient * axis_error;
 
   // --- Control law ---
   ctrl::MatrixND I = ctrl::MatrixND::Identity(n_robot_joints_, n_robot_joints_);
-  ctrl::MatrixND Jr =
-      coord_jac.data.block(0, n_pos_joints_, 5, n_robot_joints_);
-  ctrl::MatrixND Jr_pinv = ctrl::pseudoInverse(Jr);
+
+  ctrl::MatrixND J_task(6, n_robot_joints_);
+  J_task.topRows(3) =
+      coord_jac.data.block(0, n_pos_joints_, 3, n_robot_joints_);
+  J_task.bottomRows(3) =
+      -ctrl::skew(a_current) *
+      coord_jac.data.block(3, n_pos_joints_, 3, n_robot_joints_);
+
+  ctrl::MatrixND J_task_pinv = ctrl::pseudoInverse(J_task);
   ctrl::MatrixND Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
+  ctrl::VectorND h = rr_objective_->getJointControlCmd(joint_state_);
 
   ctrl::VectorND q_dot_pos = combined_state.qdot.data.head(n_pos_joints_);
 
-  ctrl::VectorND q_dot_cmd =
-      Jr_pinv * (cart_cmd - Jp * q_dot_pos) + (I - Jr_pinv * Jr) * h;
+  ctrl::VectorND q_dot_cmd = J_task_pinv * (task_cmd - Jp * q_dot_pos) +
+                             (I - J_task_pinv * J_task) * h;
 
   ctrl::integrate_joint_velocity(joint_state_.q.data, q_dot_cmd, joint_limits_,
                                  period.seconds(), joint_command_);
@@ -172,7 +181,7 @@ controller_interface::return_type AxiallySymmetricController::update(
       positioner_objective_->getJointControlCmd(joint_state_);
 
   ctrl::VectorND pos_setpoint =
-      ctrl::pseudoInverse(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
+      ctrl::pseudoInverse(Jp) * (task_cmd - J_task * robot_qdot_attempt);
 
   pos_setpoint = pos_setpoint.reverse();
   write_positioner_command(pos_setpoint);
