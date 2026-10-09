@@ -208,9 +208,9 @@ Visualization Manager:
         rob1_link7:
           Value: false
         rob1_tool:
-          Value: false
-        rob1_tool0:
           Value: true
+        rob1_tool0:
+          Value: false
         rob2_base_link:
           Value: true
         rob2_link1:
@@ -228,9 +228,9 @@ Visualization Manager:
         rob2_link7:
           Value: false
         rob2_tool:
-          Value: false
-        rob2_tool0:
           Value: true
+        rob2_tool0:
+          Value: false
         world:
           Value: false
       Marker Scale: 0.4000000059604645
@@ -271,7 +271,7 @@ Visualization Manager:
       Enabled: true
       Name: Rob1MarkerArray
       Namespaces:
-        cylinder: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -283,7 +283,7 @@ Visualization Manager:
       Enabled: true
       Name: Rob2MarkerArray
       Namespaces:
-        cylinder: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile

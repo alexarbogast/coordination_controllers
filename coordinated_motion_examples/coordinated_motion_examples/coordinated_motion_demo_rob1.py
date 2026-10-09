@@ -35,7 +35,7 @@ class CoordinatedControlDemoRob1(CoordinatedControlDemo):
             "positioner",
         )
 
-        self.movel(ft[0], self.static_orient, 2)
+        self.movel(ft[0], self.static_orient, 4)
         self.execute_path(ft, f_dott, self.static_orient)
         self.path_viz.reset()
 
