@@ -64,7 +64,7 @@ PositionAttractor::getJointControlCmd(const KDL::JntArrayVel& joint_state)
 
   ctrl::Vector3D trans_error((tracked_position_ - pose.p).data);
   return params_.k_attract *
-         ctrl::rightPinv(jac.data.block(0, 0, 3, n_joints_)) * trans_error;
+         ctrl::pseudoInverse(jac.data.block(0, 0, 3, n_joints_)) * trans_error;
 }
 
 }  // namespace coordinated_motion_controllers

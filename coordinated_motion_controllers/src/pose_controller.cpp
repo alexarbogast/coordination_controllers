@@ -147,18 +147,13 @@ PoseController::on_activate(const rclcpp_lifecycle::State& previous_state)
   // initialize joint state from hardware
   read_state_from_hardware(joint_state_);
 
-  KDL::JntArrayVel pos_state(n_pos_joints_);
-  pos_state_interface_->read(pos_state);
-
-  KDL::JntArray combined_positions(n_robot_joints_ + n_pos_joints_);
-  combined_positions.data << pos_state.q.data.reverse(), joint_state_.q.data;
+  KDL::JntArrayVel combined_state(n_pos_joints_ + n_robot_joints_);
+  get_combined_state(combined_state);
 
   Setpoint init_setpoint;
-  coordinated_fk_solver_->JntToCart(combined_positions, init_setpoint.pose);
+  coordinated_fk_solver_->JntToCart(combined_state.q, init_setpoint.pose);
   setpoint_buffer_.writeFromNonRT(std::move(init_setpoint));
 
-  RCLCPP_INFO(get_node()->get_logger(),
-              "Activated CoordinatedPoseController...");
   return CallbackReturn::SUCCESS;
 }
 
@@ -211,7 +206,7 @@ controller_interface::return_type PoseController::update(
       ctrl::MatrixND::Identity(n_robot_joints_, n_robot_joints_);
   ctrl::MatrixND Jr =
       coord_jac.data.block(0, n_pos_joints_, 6, n_robot_joints_);
-  ctrl::MatrixND Jr_pinv = ctrl::rightPinv(Jr);
+  ctrl::MatrixND Jr_pinv = ctrl::pseudoInverse(Jr);
   ctrl::MatrixND Jp = coord_jac.data.block(0, 0, 6, n_pos_joints_);
 
   ctrl::VectorND q_dot_pos = combined_state.q.data.head(n_pos_joints_);
@@ -229,7 +224,7 @@ controller_interface::return_type PoseController::update(
       positioner_objective_->getJointControlCmd(joint_state_);
 
   ctrl::VectorND pos_setpoint =
-      ctrl::dampedPinv(Jp, 0.1) * (cart_cmd - Jr * robot_qdot_attempt);
+      ctrl::pseudoInverse(Jp) * (cart_cmd - Jr * robot_qdot_attempt);
 
   pos_setpoint = pos_setpoint.reverse();
   write_positioner_command(pos_setpoint);

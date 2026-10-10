@@ -284,8 +284,6 @@ controller_interface::CallbackReturn CoordinatedControllerBase::on_activate(
   }
 
   positioner_setpoint_msg_.coordinated = true;
-
-  RCLCPP_INFO(logger, "Activated CoordinatedControllerBase");
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
