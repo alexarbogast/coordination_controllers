@@ -29,6 +29,7 @@
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "trajectory_msgs/msg/joint_trajectory_point.hpp"
 #include "taskspace_control_msgs/msg/pose_twist_setpoint.hpp"
+#include "taskspace_control_msgs/msg/diagnostic.hpp"
 #include "coordinated_control_msgs/msg/positioner_setpoint.hpp"
 #include "taskspace_control_msgs/srv/query_pose.hpp"
 
@@ -91,6 +92,13 @@ protected:
   virtual bool queryPoseServiceCb(const std::shared_ptr<QueryPose::Request> req,
                                   std::shared_ptr<QueryPose::Response> resp);
 
+  // Controller diagnostics
+  void publish_diagnostics(const rclcpp::Time& time,
+                           const KDL::JntArrayVel& joint_cmd,
+                           const KDL::JntArrayVel& joint_fb,
+                           const ctrl::Pose& pose_cmd,
+                           const ctrl::Pose& pose_fb);
+
   std::shared_ptr<coordinated_controller_base::ParamListener> param_listener_;
   coordinated_controller_base::Params params_;
 
@@ -101,6 +109,8 @@ protected:
 
   bool has_position_command_interface_ = false;
   bool has_velocity_command_interface_ = false;
+  bool has_position_state_interface_ = false;
+  bool has_velocity_state_interface_ = false;
 
   // Controller parameters
   std::vector<std::string> robot_joint_names_, positioner_joint_names_;
@@ -129,6 +139,12 @@ protected:
 
   // Positioner State Interface
   std::unique_ptr<PositionerStateInterface> pos_state_interface_;
+
+  // Diagnostic
+  using DiagnosticMsg = taskspace_control_msgs::msg::Diagnostic;
+  std::shared_ptr<rclcpp::Publisher<DiagnosticMsg>> diagnostic_pub_;
+  std::unique_ptr<realtime_tools::RealtimePublisher<DiagnosticMsg>>
+      rt_diagnostic_pub_;
 };
 
 }  // namespace coordinated_motion_controllers

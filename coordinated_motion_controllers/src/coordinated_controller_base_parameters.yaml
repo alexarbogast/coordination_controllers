@@ -9,6 +9,17 @@ coordinated_controller_base:
     },
     read_only: true
   }
+  state_interfaces: {
+    type: string_array,
+    description: "Names of the state interfaces to read",
+    default_value: ["position"],
+    validation: {
+      unique<>: null,
+      size_gt<>: [0],
+      subset_of<>: [["position", "velocity"]],
+    },
+    read_only: true
+  }
   positioner_link: {
     type: string,
     description: "Name of the positioner frame",
@@ -24,7 +35,7 @@ coordinated_controller_base:
     description: "Name of the 'tool' reference frame",
     read_only: true,
   }
-  state_interface: {
+  positioner_state_interface: {
     type: string,
     default_value: topic,
     description: "The positioner state interface",
@@ -43,4 +54,10 @@ coordinated_controller_base:
     type: double,
     default_value: 0.001,
     description: "Minimum manipulability index w = sqrt(det(J*J^T)) below which output is zeroed."
+  }
+  enable_diagnostics: {
+    type: bool,
+    default_value: false,
+    description: "Enable publishing of coordinated controller diagnostics",
+    read_only: true
   }

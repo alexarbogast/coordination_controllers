@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.14.4)
 project(coordinated_motion_controllers)
 
 if(NOT CMAKE_BUILD_TYPE)

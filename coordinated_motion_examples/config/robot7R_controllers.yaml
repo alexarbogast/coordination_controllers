@@ -43,7 +43,9 @@ rob1_coordinated_pose_controller:
     # pos_objective:
     #   match_config: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
+    positioner_state_interface: topic
     positioner_topic: /joint_states
+
     setpoint_topic: setpoint
 
 rob1_coordinated_as_controller:
@@ -69,7 +71,7 @@ rob1_coordinated_as_controller:
     k_attract: 1.0
     attractor: [0.25, 0.0, 0.0]
 
-    state_interface: loaned
+    positioner_state_interface: loaned
     # positioner_topic: /joint_states
 
     setpoint_topic: setpoint
@@ -118,7 +120,7 @@ rob2_coordinated_as_controller:
     k_attract: 1.0
     attractor: [0.25, 0.0, 0.0]
 
-    state_interface: loaned
+    positioner_state_interface: loaned
     # positioner_topic: /joint_states
 
     setpoint_topic: setpoint
