@@ -154,22 +154,24 @@ controller_interface::return_type AxiallySymmetricController::update(
 
   // --- Control law ---
   ctrl::MatrixND I = ctrl::MatrixND::Identity(n_robot_joints_, n_robot_joints_);
+  ctrl::MatrixND Jp = coord_jac.data.block(0, 0, 6, n_pos_joints_);
+  ctrl::MatrixND Jr =
+      coord_jac.data.block(0, n_pos_joints_, 6, n_robot_joints_);
 
-  ctrl::MatrixND J_task(6, n_robot_joints_);
-  J_task.topRows(3) =
-      coord_jac.data.block(0, n_pos_joints_, 3, n_robot_joints_);
-  J_task.bottomRows(3) =
-      -ctrl::skew(a_current) *
-      coord_jac.data.block(3, n_pos_joints_, 3, n_robot_joints_);
+  ctrl::MatrixND Jp_task = Jp;
+  ctrl::MatrixND Jr_task = Jr;
+  ctrl::Matrix3D a_skew = ctrl::skew(a_current);
+  Jp_task.bottomRows(3) = -a_skew * Jp_task.bottomRows(3);
+  Jr_task.bottomRows(3) = -a_skew * Jr_task.bottomRows(3);
 
-  ctrl::MatrixND J_task_pinv = ctrl::pseudoInverse(J_task);
-  ctrl::MatrixND Jp = coord_jac.data.block(0, 0, 5, n_pos_joints_);
+  ctrl::MatrixND Jp_task_pinv = ctrl::pseudoInverse(Jp_task);
+  ctrl::MatrixND Jr_task_pinv = ctrl::pseudoInverse(Jr_task);
+
   ctrl::VectorND h = rr_objective_->getJointControlCmd(joint_state_);
-
   ctrl::VectorND q_dot_pos = combined_state.qdot.data.head(n_pos_joints_);
 
-  ctrl::VectorND q_dot_cmd = J_task_pinv * (task_cmd - Jp * q_dot_pos) +
-                             (I - J_task_pinv * J_task) * h;
+  ctrl::VectorND q_dot_cmd = Jr_task_pinv * (task_cmd - Jp_task * q_dot_pos) +
+                             (I - Jr_task_pinv * Jr_task) * h;
 
   ctrl::integrate_joint_velocity(joint_state_.q.data, q_dot_cmd, joint_limits_,
                                  period.seconds(), joint_command_);
@@ -181,7 +183,7 @@ controller_interface::return_type AxiallySymmetricController::update(
       positioner_objective_->getJointControlCmd(joint_state_);
 
   ctrl::VectorND pos_setpoint =
-      ctrl::pseudoInverse(Jp) * (task_cmd - J_task * robot_qdot_attempt);
+      Jp_task_pinv * (task_cmd - Jr_task * robot_qdot_attempt);
 
   pos_setpoint = pos_setpoint.reverse();
   write_positioner_command(pos_setpoint);
